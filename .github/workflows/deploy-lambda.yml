@@ -22,6 +22,12 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
+      name: Crear archivo ZIP de la función Lambda
+      run: zip -r lambda_function.zip lambda_function.py
+
+      name: Verificar existencia del archivo ZIP
+      run: ls -l lambda_function.zip
+
     - name: Zip Lambda function
       run: zip -r lambda_function.zip lambda_function.py
 
@@ -30,3 +36,4 @@ jobs:
         aws lambda update-function-code \
           --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
           --zip-file fileb://lambda_function.zip
+          --region ${{ secrets.AWS_REGION }}
