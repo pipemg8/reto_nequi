@@ -10,6 +10,22 @@ import uuid
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table("Franquicias")
 
+def obtener_franquicia(franquicia_id):
+    """Obtiene una franquicia por su ID desde DynamoDB."""
+    response = table.get_item(Key={"FranquiciaID": franquicia_id})
+    return response.get("Item")
+
+def obtener_sucursal(franquicia, sucursal_id):
+    """Obtiene una sucursal dentro de una franquicia por su ID."""
+    return next((sucursal for sucursal in franquicia["Sucursales"] if sucursal["SucursalID"] == sucursal_id), None)
+
+def agregar_producto_a_sucursal(sucursal, producto_id, nombre):
+    """Agrega un producto a una sucursal."""
+    sucursal.setdefault("Productos", []).append({
+        "ProductoID": producto_id,
+        "Nombre": nombre
+    })
+
 def manejar_productos(event, metodo):
     """
     Función para manejar las operaciones CRUD de productos en sucursales.
@@ -21,56 +37,40 @@ def manejar_productos(event, metodo):
     Retorna:
     - Dict con el código de estado y el cuerpo de la respuesta.
     """
+    
+    if metodo != "POST":
+        return {"statusCode": 405, "body": json.dumps({"error": "Método no permitido"})}
 
-    if metodo == "POST":
-        data = event.get("queryStringParameters", {})
+    data = event.get("queryStringParameters", {})
 
-        if not data or "franquicia_id" not in data or "sucursal_id" not in data or "nombre" not in data:
-            return {
-                "statusCode": 400,
-                "body": json.dumps({"error": "Faltan parámetros 'franquicia_id', 'sucursal_id' o 'nombre'"})
-            }
-
-        franquicia_id = data["franquicia_id"]
-        sucursal_id = data["sucursal_id"]
-        producto_id = str(uuid.uuid4())
-
-        # Obtiene la franquicia para modificarla
-        response = table.get_item(Key={"FranquiciaID": franquicia_id})
-
-        if "Item" not in response:
-            return {
-                "statusCode": 404,
-                "body": json.dumps({"error": "Franquicia no encontrada"})
-            }
-
-        franquicia = response["Item"]
-
-        # Busca la sucursal dentro de la franquicia
-        for sucursal in franquicia["Sucursales"]:
-            if sucursal["SucursalID"] == sucursal_id:
-                if "Productos" not in sucursal:
-                    sucursal["Productos"] = []
-                sucursal["Productos"].append({
-                    "ProductoID": producto_id,
-                    "Nombre": data["nombre"]
-                })
-                break
-        else:
-            return {
-                "statusCode": 404,
-                "body": json.dumps({"error": "Sucursal no encontrada"})
-            }
-
-        # Guarda los cambios en la base de datos
-        table.put_item(Item=franquicia)
-
+    # Validar parámetros obligatorios
+    required_params = ["franquicia_id", "sucursal_id", "nombre"]
+    if not all(param in data for param in required_params):
         return {
-            "statusCode": 201,
-            "body": json.dumps({"message": "Producto creado", "ProductoID": producto_id})
+            "statusCode": 400,
+            "body": json.dumps({"error": "Faltan parámetros 'franquicia_id', 'sucursal_id' o 'nombre'"})
         }
 
+    franquicia_id, sucursal_id, nombre = data["franquicia_id"], data["sucursal_id"], data["nombre"]
+
+    # Obtener la franquicia
+    franquicia = obtener_franquicia(franquicia_id)
+    if not franquicia:
+        return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
+
+    # Obtener la sucursal
+    sucursal = obtener_sucursal(franquicia, sucursal_id)
+    if not sucursal:
+        return {"statusCode": 404, "body": json.dumps({"error": "Sucursal no encontrada"})}
+
+    # Agregar producto
+    producto_id = str(uuid.uuid4())
+    agregar_producto_a_sucursal(sucursal, producto_id, nombre)
+
+    # Guardar cambios en la base de datos
+    table.put_item(Item=franquicia)
+
     return {
-        "statusCode": 405,
-        "body": json.dumps({"error": "Método no permitido"})
+        "statusCode": 201,
+        "body": json.dumps({"message": "Producto creado", "ProductoID": producto_id})
     }
