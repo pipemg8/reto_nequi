@@ -11,7 +11,7 @@ def lambda_handler(event, context):
     ruta = event.get("path", "")
     metodo = event.get("httpMethod", "")
 
-    if ruta.startswith("/franquicias"):
+    if ruta == "/":
         return manejar_franquicias(event, metodo)
     elif ruta.startswith("/sucursales"):
         return manejar_sucursales(event, metodo)
