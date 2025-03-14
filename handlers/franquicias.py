@@ -1,6 +1,6 @@
 import services.franquicia_service as franquicia_service
 
-def lambda_handler(event, context, service=None):
+def manejar_franquicias (event, context, service=None):
     """Manejador para franquicias"""
 
     # Inyección de dependencia para facilitar pruebas (si no se pasa un servicio, se instancia uno)

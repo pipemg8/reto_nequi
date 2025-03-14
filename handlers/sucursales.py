@@ -13,17 +13,6 @@ table = dynamodb.Table("Franquicias")
 def manejar_sucursales(event, metodo):
     print(f"Método en sucursales: {metodo}")  # Para depuración
     
-    """
-    Función para manejar las operaciones CRUD de sucursales.
-
-    Parámetros:
-    - event: Dict con la información de la solicitud HTTP.
-    - metodo: Método HTTP utilizado (GET, POST, PUT, DELETE).
-
-    Retorna:
-    - Dict con el código de estado y el cuerpo de la respuesta.
-    """
-
     if metodo == "GET":
         return obtener_sucursales(event)
     elif metodo == "POST":
@@ -43,10 +32,7 @@ def obtener_sucursales(event):
     data = event.get("queryStringParameters", {})
 
     if not data or "franquicia_id" not in data:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Falta el parámetro 'franquicia_id'"})
-        }
+        return {"statusCode": 400, "body": json.dumps({"error": "Falta el parámetro 'franquicia_id'"})}
 
     franquicia_id = data["franquicia_id"]
     response = table.get_item(Key={"FranquiciaID": franquicia_id})
@@ -63,10 +49,7 @@ def crear_sucursal(event):
     data = event.get("queryStringParameters", {})
 
     if not data or "franquicia_id" not in data or "nombre" not in data:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Faltan parámetros 'franquicia_id' o 'nombre'"})
-        }
+        return {"statusCode": 400, "body": json.dumps({"error": "Faltan parámetros 'franquicia_id' o 'nombre'"})}
 
     franquicia_id = data["franquicia_id"]
     sucursal_id = str(uuid.uuid4())
@@ -82,7 +65,7 @@ def crear_sucursal(event):
 
     franquicia["Sucursales"].append({"SucursalID": sucursal_id, "Nombre": data["nombre"]})
 
-    table.put_item(Item=franquicia)
+    table.put_item(Item=franquicia)  # Guardar cambios en la BD
 
     return {
         "statusCode": 201,
@@ -94,9 +77,66 @@ def actualizar_sucursal(event):
     data = event.get("queryStringParameters", {})
 
     if not data or "franquicia_id" not in data or "sucursal_id" not in data or "nombre" not in data:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Faltan parámetros 'franquicia_id', 'sucursal_id' o 'nombre'"})
-        }
+        return {"statusCode": 400, "body": json.dumps({"error": "Faltan parámetros 'franquicia_id', 'sucursal_id' o 'nombre'"})}
 
-    fr
+    franquicia_id = data["franquicia_id"]
+    sucursal_id = data["sucursal_id"]
+    nuevo_nombre = data["nombre"]
+
+    response = table.get_item(Key={"FranquiciaID": franquicia_id})
+
+    if "Item" not in response:
+        return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
+
+    franquicia = response["Item"]
+    sucursales = franquicia.get("Sucursales", [])
+
+    # Buscar la sucursal específica
+    for sucursal in sucursales:
+        if sucursal["SucursalID"] == sucursal_id:
+            sucursal["Nombre"] = nuevo_nombre
+            break
+    else:
+        return {"statusCode": 404, "body": json.dumps({"error": "Sucursal no encontrada"})}
+
+    # Guardar el cambio usando update_item en DynamoDB
+    table.update_item(
+        Key={"FranquiciaID": franquicia_id},
+        UpdateExpression="SET Sucursales = :s",
+        ExpressionAttributeValues={":s": sucursales}
+    )
+
+    return {"statusCode": 200, "body": json.dumps({"message": "Sucursal actualizada"})}
+
+def eliminar_sucursal(event):
+    """ Elimina una sucursal de una franquicia. """
+    data = event.get("queryStringParameters", {})
+
+    if not data or "franquicia_id" not in data or "sucursal_id" not in data:
+        return {"statusCode": 400, "body": json.dumps({"error": "Faltan parámetros 'franquicia_id' o 'sucursal_id'"})}
+
+    franquicia_id = data["franquicia_id"]
+    sucursal_id = data["sucursal_id"]
+
+    response = table.get_item(Key={"FranquiciaID": franquicia_id})
+
+    if "Item" not in response:
+        return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
+
+    franquicia = response["Item"]
+    sucursales = franquicia.get("Sucursales", [])
+
+    # Filtrar las sucursales para eliminar la indicada
+    nuevas_sucursales = [s for s in sucursales if s["SucursalID"] != sucursal_id]
+
+    if len(nuevas_sucursales) == len(sucursales):
+        return {"statusCode": 404, "body": json.dumps({"error": "Sucursal no encontrada"})}
+
+    # Guardar los cambios en DynamoDB
+    table.update_item(
+        Key={"FranquiciaID": franquicia_id},
+        UpdateExpression="SET Sucursales = :s",
+        ExpressionAttributeValues={":s": nuevas_sucursales}
+    )
+
+    return {"statusCode": 200, "body": json.dumps({"message": "Sucursal eliminada"})}
