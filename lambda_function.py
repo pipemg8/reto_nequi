@@ -6,6 +6,7 @@ from handlers.productos import manejar_productos
 def lambda_handler(event, context):
     """Manejador principal de la API Lambda"""
 
+    # Extraer valores con manejo de errores
     ruta = event.get("resource", "").strip()  # Asegurar limpieza de la ruta
     metodo = str(event.get("httpMethod", "")).strip().upper()  # Limpiar y convertir método
 
@@ -17,7 +18,12 @@ def lambda_handler(event, context):
     metodos_permitidos = {"GET", "POST", "PUT", "DELETE"}
     print(f"Lista de métodos permitidos: {metodos_permitidos}")
 
-    # Validar método HTTP
+    # 🚀 Nueva verificación: Si no se recibe un método válido
+    if not metodo:
+        print("ERROR: No se recibió un método HTTP válido.")
+        return {"statusCode": 400, "body": json.dumps({"error": "Método HTTP no especificado."})}
+
+    # Validar método HTTP antes de procesar rutas
     if metodo not in metodos_permitidos:
         print(f"ERROR: Método '{metodo}' no permitido. Métodos válidos: {metodos_permitidos}")
         return {"statusCode": 400, "body": json.dumps({"error": "Método no soportado."})}
@@ -30,7 +36,9 @@ def lambda_handler(event, context):
     elif ruta == "/productos":
         return manejar_productos(event, metodo)
     elif ruta == "/franquicias":
-        return manejar_franquicias(event, metodo)
+        respuesta = manejar_franquicias(event, metodo)
+        print(f"Respuesta de manejar_franquicias: {respuesta}")  # Debug extra
+        return respuesta
 
     # Si la ruta no se encuentra
     return {"statusCode": 404, "body": json.dumps({"error": "Ruta no encontrada"})}
