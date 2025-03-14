@@ -12,7 +12,12 @@ def lambda_handler(event, context):
     metodo = event.get("httpMethod", "")
 
     if ruta == "/":
-        return lambda_handler(event, metodo)
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"message": "Bienvenido a la API de franquicias"})
+        }
+    elif ruta.startswith("/franquicias"):
+        return manejar_franquicias(event, metodo)
     elif ruta.startswith("/sucursales"):
         return manejar_sucursales(event, metodo)
     elif ruta.startswith("/productos"):
