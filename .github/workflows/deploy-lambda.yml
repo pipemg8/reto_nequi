@@ -15,20 +15,25 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
+      - name: Configurar credenciales de AWS
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Zip Lambda function
-        run: zip -r lambda_function.zip . *
-  
-      - name: Verificar archivo ZIP
-        run: ls -l lambda_function.zip
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt -t python/
+          cp -r python/* .
 
-      - name: Deploy to AWS Lambda
+      - name: Crear archivo ZIP con dependencias y código
+        run: zip -r lambda_function.zip . -x "*.git*" "*.github*"
+
+      - name: Verificar archivo ZIP
+        run: ls -lh lambda_function.zip
+
+      - name: Desplegar en AWS Lambda
         run: |
           aws lambda update-function-code \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
