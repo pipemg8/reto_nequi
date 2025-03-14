@@ -3,7 +3,8 @@ import services.franquicia_service
 franquicia_service = services.franquicia_service.FranquiciaService()
 
 def lambda_handler(event, context):
-    """Manejador Lambda para operaciones sobre franquicias."""
+    """Manejador para franquicias"""
+    # Aquí va tu código
     http_method = event.get("httpMethod", "")
     params = event.get("queryStringParameters", {}) or {}
 
