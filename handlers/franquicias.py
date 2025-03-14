@@ -1,6 +1,6 @@
-from services.franquicia_service import FranquiciaService
+import services.franquicia_service
 
-servicio = FranquiciaService()
+franquicia_service = services.franquicia_service.FranquiciaService()
 
 def lambda_handler(event, context):
     """Manejador Lambda para operaciones sobre franquicias."""
