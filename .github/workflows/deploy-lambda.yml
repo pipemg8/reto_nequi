@@ -23,7 +23,7 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Zip Lambda function
-        run: zip -r lambda_function.zip lambda_function.py
+        run: zip -r lambda_function.zip lambda_function.py handlers/ requirements.txt
 
       - name: Verificar archivo ZIP
         run: ls -l lambda_function.zip
