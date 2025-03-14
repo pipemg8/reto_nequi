@@ -8,7 +8,7 @@ from handlers.sucursales import manejar_sucursales
 from handlers.productos import manejar_productos
 
 def lambda_handler(event, context):
-    ruta = event.get("resource", "")
+    ruta = event.get("path", "")
     metodo = event.get("httpMethod", "")
 
     if ruta.startswith("/franquicias"):
