@@ -8,12 +8,12 @@ def lambda_handler(event, context):
     params = event.get("queryStringParameters", {}) or {}
 
     if http_method == "POST":
-        return servicio.crear_franquicia(params.get("nombre"))
+        return franquicia_service.crear_franquicia(params.get("nombre"))
 
     if http_method == "PUT":
-        return servicio.actualizar_franquicia(params.get("id"), params.get("nombre"))
+        return franquicia_service.actualizar_franquicia(params.get("id"), params.get("nombre"))
 
     if http_method == "DELETE":
-        return servicio.eliminar_franquicia(params.get("id"))
+        return franquicia_service.eliminar_franquicia(params.get("id"))
 
     return {"statusCode": 400, "body": "Método no soportado."}
