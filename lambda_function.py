@@ -6,18 +6,18 @@ from handlers.productos import manejar_productos
 def lambda_handler(event, context):
     """Manejador principal de la API Lambda"""
 
-    # Extraer valores con manejo de errores
-    ruta = event.get("resource", "")  # Cambiado de "path" a "resource"
-    metodo = event.get("httpMethod", "").upper()
+    ruta = event.get("resource", "")  # Usamos "resource" en lugar de "path"
+    metodo = str(event.get("httpMethod", "")).upper()  # Asegurar tipo string y mayúsculas
 
     # Log de depuración
     print(f"Evento recibido: {json.dumps(event, indent=2)}")
     print(f"Ruta recibida: {ruta}, Método recibido: {metodo}")
 
-    # Lista de métodos permitidos
+    # Métodos permitidos
     metodos_permitidos = {"GET", "POST", "PUT", "DELETE"}
 
     if metodo not in metodos_permitidos:
+        print(f"Error: Método '{metodo}' no está en {metodos_permitidos}")
         return {"statusCode": 400, "body": json.dumps({"error": "Método no soportado."})}
 
     if ruta == "/":
