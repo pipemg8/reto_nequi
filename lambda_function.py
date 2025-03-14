@@ -7,8 +7,8 @@ def lambda_handler(event, context):
     """Manejador principal de la API Lambda"""
 
     # Extraer valores con manejo de errores
-    ruta = event.get("path", "")
-    metodo = event.get("httpMethod", "").upper()  # Convertir método a mayúsculas
+    ruta = event.get("resource", "")  # Cambiado de "path" a "resource"
+    metodo = event.get("httpMethod", "").upper()
 
     # Log de depuración
     print(f"Evento recibido: {json.dumps(event, indent=2)}")
@@ -22,11 +22,11 @@ def lambda_handler(event, context):
 
     if ruta == "/":
         return {"statusCode": 200, "body": json.dumps({"message": "API funcionando correctamente"})}
-    elif "/sucursales" in ruta:
+    elif ruta == "/sucursales":
         return manejar_sucursales(event, metodo)
-    elif "/productos" in ruta:
+    elif ruta == "/productos":
         return manejar_productos(event, metodo)
-    elif "/franquicias" in ruta:
+    elif ruta == "/franquicias":
         return manejar_franquicias(event, metodo)
 
     return {"statusCode": 404, "body": json.dumps({"error": "Ruta no encontrada"})}
