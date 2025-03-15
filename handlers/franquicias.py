@@ -1,10 +1,9 @@
-import services.franquicia_service as franquicia_service
 import json
+import services.franquicia_service as franquicia_service
 
 def manejar_franquicias(event, context, service=None):
     """Manejador para franquicias"""
 
-    # Inyección de dependencia para facilitar pruebas (si no se pasa un servicio, se instancia uno)
     service = service or franquicia_service.FranquiciaService()
 
     http_method = event.get("httpMethod", "").upper()
@@ -16,26 +15,38 @@ def manejar_franquicias(event, context, service=None):
     handlers = {
         "GET": lambda: validar_y_ejecutar(service.obtener_franquicia, params, ["franquicia_id"]),
         "POST": lambda: validar_y_ejecutar(service.crear_franquicia, params, ["nombre"]),
-        "PUT": lambda: validar_y_ejecutar(service.actualizar_franquicia, params, ["id", "nombre"]),
-        "DELETE": lambda: validar_y_ejecutar(service.eliminar_franquicia, params, ["id"])
+        "PUT": lambda: validar_y_ejecutar(service.actualizar_franquicia, params, ["franquicia_id", "nombre"]),
+        "DELETE": lambda: validar_y_ejecutar(service.eliminar_franquicia, params, ["franquicia_id"])
     }
 
-    # Ejecutar el manejador correspondiente o retornar error si el método no está soportado
-    return handlers.get(http_method, lambda: {"statusCode": 400, "body": json.dumps({"error": "Método no soportado."})})()
+    response = handlers.get(http_method, metodo_no_soportado)()
+
+    # Asegurar que el body sea un JSON válido
+    if isinstance(response.get("body"), str):
+        response["body"] = json.loads(response["body"])
+
+    return response
 
 def validar_y_ejecutar(func, params, required_params):
     """Valida que los parámetros requeridos estén presentes y ejecuta la función"""
     if not all(param in params and params[param] for param in required_params):
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": f"Faltan parámetros obligatorios: {', '.join(required_params)}"})
-        }
+        return respuesta(400, f"Faltan parámetros obligatorios: {', '.join(required_params)}")
 
-    # Ejecutar la función con los parámetros requeridos
     resultado = func(*[params[param] for param in required_params])
 
-    # Si la función devuelve un diccionario, aseguramos que sea serializable
-    if isinstance(resultado, dict):
-        return {"statusCode": 200, "body": json.dumps(resultado)}
+    # Si la función ya devuelve un diccionario con statusCode y body, lo retornamos sin cambios
+    if isinstance(resultado, dict) and "statusCode" in resultado and "body" in resultado:
+        return resultado
 
-    return resultado
+    return respuesta(200, resultado)
+
+def metodo_no_soportado():
+    """Respuesta estándar para métodos HTTP no soportados"""
+    return respuesta(400, "Método no soportado.")
+
+def respuesta(status_code, message):
+    """Genera una respuesta HTTP consistente"""
+    return {
+        "statusCode": status_code,
+        "body": json.dumps({"message": message})
+    }
