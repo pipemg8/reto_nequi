@@ -6,8 +6,9 @@ def manejar_franquicias(event, context, service=None):
     
     service = service or FranquiciaService()
     http_method = event.get("httpMethod", "").upper()
-    
+
     print(f"📌 Método recibido: {http_method}, Event: {json.dumps(event)}")
+    print(f"Path Parameters: {event.get('pathParameters')}")  # 🔍 Para depuración
 
     if http_method == "POST":
         return manejar_creacion_franquicia(event, service)
@@ -57,13 +58,13 @@ def manejar_obtener_franquicia(event, service):
 def manejar_actualizar_franquicia(event, service):
     """Maneja la actualización de una franquicia."""
     try:
-        # Obtener ID desde pathParameters
-        franquicia_id = event.get("pathParameters", {}).get("franquicia_id")
+        path_params = event.get("pathParameters", {}) or {}
+        franquicia_id = path_params.get("franquicia_id")  # 🔍 Obtener ID de los parámetros de ruta
         body = json.loads(event.get("body", "{}"))
         nuevo_nombre = body.get("nombre")
 
         if not franquicia_id or not nuevo_nombre:
-            return respuesta(400, {"error": "Se requieren 'franquicia_id' en path y 'nombre' en body."})
+            return respuesta(400, {"error": "Se requieren 'franquicia_id' y 'nombre'."})
 
         resultado = service.actualizar_franquicia(franquicia_id, nuevo_nombre)
         return respuesta(200, resultado)
@@ -74,8 +75,8 @@ def manejar_actualizar_franquicia(event, service):
 def manejar_eliminar_franquicia(event, service):
     """Maneja la eliminación de una franquicia."""
     try:
-        # Obtener ID desde pathParameters
-        franquicia_id = event.get("pathParameters", {}).get("franquicia_id")
+        path_params = event.get("pathParameters", {}) or {}
+        franquicia_id = path_params.get("franquicia_id")
 
         if not franquicia_id:
             return respuesta(400, {"error": "Se requiere 'franquicia_id'."})
