@@ -1,35 +1,21 @@
 """
-Módulo para gestionar productos dentro de una sucursal.
+Módulo de handler para gestionar las rutas de productos.
 """
 
 import json
-import boto3
-import uuid
+from http import HTTPStatus
+from services.producto_service import ProductoService
 
-# Inicializar el cliente de DynamoDB
-dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table("Franquicias")
+producto_service = ProductoService()
 
-def obtener_franquicia(franquicia_id):
-    """Obtiene una franquicia por su ID desde DynamoDB."""
-    response = table.get_item(Key={"FranquiciaID": franquicia_id})
-    return response.get("Item")
-
-def obtener_sucursal(franquicia, sucursal_id):
-    """Obtiene una sucursal dentro de una franquicia por su ID."""
-    return next((sucursal for sucursal in franquicia["Sucursales"] if sucursal["SucursalID"] == sucursal_id), None)
-
-def agregar_producto_a_sucursal(sucursal, producto_id, nombre):
-    """Agrega un producto a una sucursal."""
-    sucursal.setdefault("Productos", []).append({
-        "ProductoID": producto_id,
-        "Nombre": nombre
-    })
+def response_json(status, message):
+    """Genera una respuesta JSON estándar."""
+    return {"statusCode": status, "body": json.dumps(message)}
 
 def manejar_productos(event, metodo):
     """
-    Función para manejar las operaciones CRUD de productos en sucursales.
-    
+    Maneja las operaciones de productos dentro de sucursales.
+
     Parámetros:
     - event: Dict con la información de la solicitud HTTP.
     - metodo: Método HTTP utilizado (POST).
@@ -37,40 +23,20 @@ def manejar_productos(event, metodo):
     Retorna:
     - Dict con el código de estado y el cuerpo de la respuesta.
     """
-    
-    if metodo != "POST":
-        return {"statusCode": 405, "body": json.dumps({"error": "Método no permitido"})}
+    if metodo == "POST":
+        return agregar_producto_handler(event)
 
+    return response_json(HTTPStatus.METHOD_NOT_ALLOWED, {"error": "Método no permitido"})
+
+def agregar_producto_handler(event):
+    """Maneja la adición de productos a una sucursal."""
     data = event.get("queryStringParameters", {})
 
-    # Validar parámetros obligatorios
     required_params = ["franquicia_id", "sucursal_id", "nombre"]
     if not all(param in data for param in required_params):
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Faltan parámetros 'franquicia_id', 'sucursal_id' o 'nombre'"})
-        }
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Faltan parámetros requeridos"})
 
     franquicia_id, sucursal_id, nombre = data["franquicia_id"], data["sucursal_id"], data["nombre"]
-
-    # Obtener la franquicia
-    franquicia = obtener_franquicia(franquicia_id)
-    if not franquicia:
-        return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
-
-    # Obtener la sucursal
-    sucursal = obtener_sucursal(franquicia, sucursal_id)
-    if not sucursal:
-        return {"statusCode": 404, "body": json.dumps({"error": "Sucursal no encontrada"})}
-
-    # Agregar producto
-    producto_id = str(uuid.uuid4())
-    agregar_producto_a_sucursal(sucursal, producto_id, nombre)
-
-    # Guardar cambios en la base de datos
-    table.put_item(Item=franquicia)
-
-    return {
-        "statusCode": 201,
-        "body": json.dumps({"message": "Producto creado", "ProductoID": producto_id})
-    }
+    
+    resultado, status_code = producto_service.agregar_producto(franquicia_id, sucursal_id, nombre)
+    return response_json(status_code, resultado)

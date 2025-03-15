@@ -1,21 +1,24 @@
-import boto3
+"""
+Módulo de servicio para la gestión de franquicias en DynamoDB.
+"""
+
 import json
 import uuid
-from boto3.dynamodb.conditions import Key
+from typing import Optional, Dict, Any
+from repositories.dynamo_repository import DynamoRepository
+
 
 class FranquiciaService:
     """Servicio para manejar operaciones CRUD de franquicias con DynamoDB."""
 
-    def __init__(self, table_name="Franquicias"):
-        dynamodb = boto3.resource("dynamodb")
-        self.table = dynamodb.Table(table_name)
+    def __init__(self):
+        self.repository = DynamoRepository("Franquicias")
 
     def franquicia_existe(self, franquicia_id: str) -> bool:
         """Verifica si una franquicia con el ID dado existe en la base de datos."""
-        response = self.table.get_item(Key={"FranquiciaID": franquicia_id})
-        return "Item" in response
+        return self.repository.get_item({"FranquiciaID": franquicia_id}) is not None
 
-    def crear_franquicia(self, nombre: str):
+    def crear_franquicia(self, nombre: str) -> Dict[str, Any]:
         """Crea una nueva franquicia en la base de datos."""
         if not nombre:
             return self._response(400, "El parámetro 'nombre' es obligatorio.")
@@ -27,28 +30,23 @@ class FranquiciaService:
         }
 
         try:
-            self.table.put_item(Item=nueva_franquicia)
+            self.repository.put_item(nueva_franquicia)
             return self._response(201, "Franquicia creada exitosamente.", nueva_franquicia)
         except Exception as e:
             return self._response(500, f"Error al crear franquicia: {str(e)}")
 
-    def obtener_franquicia(self, franquicia_id: str):
+    def obtener_franquicia(self, franquicia_id: str) -> Dict[str, Any]:
         """Obtiene una franquicia por ID."""
         if not franquicia_id:
             return self._response(400, "Se requiere el parámetro 'franquicia_id'.")
 
-        try:
-            response = self.table.get_item(Key={"FranquiciaID": franquicia_id})
-            franquicia = response.get("Item")
+        franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
+        if not franquicia:
+            return self._response(404, "Franquicia no encontrada.")
 
-            if not franquicia:
-                return self._response(404, "Franquicia no encontrada.")
+        return self._response(200, "Franquicia encontrada.", franquicia)
 
-            return self._response(200, "Franquicia encontrada.", franquicia)
-        except Exception as e:
-            return self._response(500, f"Error al obtener franquicia: {str(e)}")
-
-    def actualizar_franquicia(self, franquicia_id: str, nuevo_nombre: str):
+    def actualizar_franquicia(self, franquicia_id: str, nuevo_nombre: str) -> Dict[str, Any]:
         """Actualiza el nombre de una franquicia existente."""
         if not franquicia_id or not nuevo_nombre:
             return self._response(400, "Se requieren 'franquicia_id' y 'nuevo_nombre'.")
@@ -57,18 +55,16 @@ class FranquiciaService:
             return self._response(404, "La franquicia no existe.")
 
         try:
-            self.table.update_item(
-                Key={"FranquiciaID": franquicia_id},
-                UpdateExpression="SET Nombre = :nombre",
-                ExpressionAttributeValues={":nombre": nuevo_nombre},
-                ReturnValues="UPDATED_NEW"
+            self.repository.update_item(
+                {"FranquiciaID": franquicia_id},
+                "SET Nombre = :nombre",
+                {":nombre": nuevo_nombre}
             )
-
             return self._response(200, "Franquicia actualizada.")
         except Exception as e:
             return self._response(500, f"Error al actualizar franquicia: {str(e)}")
 
-    def eliminar_franquicia(self, franquicia_id: str):
+    def eliminar_franquicia(self, franquicia_id: str) -> Dict[str, Any]:
         """Elimina una franquicia por su ID."""
         if not franquicia_id:
             return self._response(400, "Se requiere el parámetro 'franquicia_id'.")
@@ -77,13 +73,13 @@ class FranquiciaService:
             return self._response(404, "La franquicia no existe.")
 
         try:
-            self.table.delete_item(Key={"FranquiciaID": franquicia_id})
+            self.repository.delete_item({"FranquiciaID": franquicia_id})
             return self._response(200, "Franquicia eliminada.")
         except Exception as e:
             return self._response(500, f"Error al eliminar franquicia: {str(e)}")
 
     @staticmethod
-    def _response(status_code: int, message: str, data=None):
+    def _response(status_code: int, message: str, data: Optional[Dict] = None) -> Dict[str, Any]:
         """Genera una respuesta HTTP estándar."""
         response_body = {"message": message}
         if data:

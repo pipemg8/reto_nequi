@@ -1,142 +1,104 @@
-"""
-Módulo para gestionar sucursales dentro de una franquicia.
-"""
-
 import json
-import boto3
 import uuid
+from http import HTTPStatus
+from repositories.dynamo_repository import DynamoRepository
 
-# Inicializar el cliente de DynamoDB
-dynamodb = boto3.resource("dynamodb")
-table = dynamodb.Table("Franquicias")
+# Inicializar el repositorio para la tabla de franquicias
+franquicia_repo = DynamoRepository("Franquicias")
 
-def manejar_sucursales(event, metodo):
-    print(f"Método en sucursales: {metodo}")  # Para depuración
+def manejar_sucursales(event, context):
+    """ Punto de entrada principal para manejar solicitudes HTTP """
+    method = event.get("httpMethod")
+    path = event.get("pathParameters", {})
+    query_params = event.get("queryStringParameters", {}) or {}
+
+    if path and "franquicia_id" in path:
+        franquicia_id = path["franquicia_id"]
+
+        if method == "GET":
+            return obtener_sucursales(franquicia_id)
+        elif method == "POST":
+            return crear_sucursal(franquicia_id, query_params)
+        elif method == "PUT":
+            return actualizar_sucursal(franquicia_id, query_params)
+        elif method == "DELETE":
+            return eliminar_sucursal(franquicia_id, query_params)
     
-    if metodo == "GET":
-        return obtener_sucursales(event)
-    elif metodo == "POST":
-        return crear_sucursal(event)
-    elif metodo == "PUT":
-        return actualizar_sucursal(event)
-    elif metodo == "DELETE":
-        return eliminar_sucursal(event)
-    else:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Método no soportado en sucursales."})
-        }
+    return response_json(HTTPStatus.BAD_REQUEST, {"error": "Ruta o método no soportado"})
 
-def obtener_sucursales(event):
-    """ Obtiene todas las sucursales de una franquicia específica. """
-    data = event.get("queryStringParameters", {})
-
-    if not data or "franquicia_id" not in data:
-        return {"statusCode": 400, "body": json.dumps({"error": "Falta el parámetro 'franquicia_id'"})}
-
-    franquicia_id = data["franquicia_id"]
-    response = table.get_item(Key={"FranquiciaID": franquicia_id})
-
-    if "Item" not in response:
-        return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
-
-    sucursales = response["Item"].get("Sucursales", [])
-
-    return {"statusCode": 200, "body": json.dumps({"sucursales": sucursales})}
-
-def crear_sucursal(event):
-    """ Crea una nueva sucursal en una franquicia existente. """
-    data = event.get("queryStringParameters", {})
-
-    if not data or "franquicia_id" not in data or "nombre" not in data:
-        return {"statusCode": 400, "body": json.dumps({"error": "Faltan parámetros 'franquicia_id' o 'nombre'"})}
-
-    franquicia_id = data["franquicia_id"]
-    sucursal_id = str(uuid.uuid4())
-
-    response = table.get_item(Key={"FranquiciaID": franquicia_id})
-
-    if "Item" not in response:
-        return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
-
-    franquicia = response["Item"]
-    if "Sucursales" not in franquicia:
-        franquicia["Sucursales"] = []
-
-    franquicia["Sucursales"].append({"SucursalID": sucursal_id, "Nombre": data["nombre"]})
-
-    table.put_item(Item=franquicia)  # Guardar cambios en la BD
-
-    return {
-        "statusCode": 201,
-        "body": json.dumps({"message": "Sucursal creada", "SucursalID": sucursal_id})
-    }
-
-def actualizar_sucursal(event):
-    """ Actualiza el nombre de una sucursal existente. """
-    data = event.get("queryStringParameters", {})
-
-    if not data or "franquicia_id" not in data or "sucursal_id" not in data or "nombre" not in data:
-        return {"statusCode": 400, "body": json.dumps({"error": "Faltan parámetros 'franquicia_id', 'sucursal_id' o 'nombre'"})}
-
-    franquicia_id = data["franquicia_id"]
-    sucursal_id = data["sucursal_id"]
-    nuevo_nombre = data["nombre"]
-
-    response = table.get_item(Key={"FranquiciaID": franquicia_id})
-
-    if "Item" not in response:
-        return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
-
-    franquicia = response["Item"]
+def obtener_sucursales(franquicia_id):
+    franquicia = franquicia_repo.get_item({"FranquiciaID": franquicia_id})
+    if not franquicia:
+        return response_json(HTTPStatus.NOT_FOUND, {"error": "Franquicia no encontrada"})
+    
     sucursales = franquicia.get("Sucursales", [])
+    return response_json(HTTPStatus.OK, {"sucursales": sucursales})
 
-    # Buscar la sucursal específica
+def crear_sucursal(franquicia_id, params):
+    if "nombre" not in params:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Falta el parámetro 'nombre'"})
+    
+    franquicia = franquicia_repo.get_item({"FranquiciaID": franquicia_id})
+    if not franquicia:
+        return response_json(HTTPStatus.NOT_FOUND, {"error": "Franquicia no encontrada"})
+    
+    sucursal_id = str(uuid.uuid4())
+    sucursales = franquicia.get("Sucursales", [])
+    sucursales.append({"SucursalID": sucursal_id, "Nombre": params["nombre"]})
+
+    franquicia_repo.update_item(
+        {"FranquiciaID": franquicia_id},
+        "SET Sucursales = :s",
+        {":s": sucursales}
+    )
+    return response_json(HTTPStatus.CREATED, {"message": "Sucursal creada", "SucursalID": sucursal_id})
+
+def actualizar_sucursal(franquicia_id, params):
+    if "sucursal_id" not in params or "nombre" not in params:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Faltan parámetros 'sucursal_id' o 'nombre'"})
+    
+    franquicia = franquicia_repo.get_item({"FranquiciaID": franquicia_id})
+    if not franquicia:
+        return response_json(HTTPStatus.NOT_FOUND, {"error": "Franquicia no encontrada"})
+    
+    sucursales = franquicia.get("Sucursales", [])
     for sucursal in sucursales:
-        if sucursal["SucursalID"] == sucursal_id:
-            sucursal["Nombre"] = nuevo_nombre
+        if sucursal["SucursalID"] == params["sucursal_id"]:
+            sucursal["Nombre"] = params["nombre"]
             break
     else:
-        return {"statusCode": 404, "body": json.dumps({"error": "Sucursal no encontrada"})}
-
-    # Guardar el cambio usando update_item en DynamoDB
-    table.update_item(
-        Key={"FranquiciaID": franquicia_id},
-        UpdateExpression="SET Sucursales = :s",
-        ExpressionAttributeValues={":s": sucursales}
+        return response_json(HTTPStatus.NOT_FOUND, {"error": "Sucursal no encontrada"})
+    
+    franquicia_repo.update_item(
+        {"FranquiciaID": franquicia_id},
+        "SET Sucursales = :s",
+        {":s": sucursales}
     )
+    return response_json(HTTPStatus.OK, {"message": "Sucursal actualizada"})
 
-    return {"statusCode": 200, "body": json.dumps({"message": "Sucursal actualizada"})}
-
-def eliminar_sucursal(event):
-    """ Elimina una sucursal de una franquicia. """
-    data = event.get("queryStringParameters", {})
-
-    if not data or "franquicia_id" not in data or "sucursal_id" not in data:
-        return {"statusCode": 400, "body": json.dumps({"error": "Faltan parámetros 'franquicia_id' o 'sucursal_id'"})}
-
-    franquicia_id = data["franquicia_id"]
-    sucursal_id = data["sucursal_id"]
-
-    response = table.get_item(Key={"FranquiciaID": franquicia_id})
-
-    if "Item" not in response:
-        return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
-
-    franquicia = response["Item"]
-    sucursales = franquicia.get("Sucursales", [])
-
-    # Filtrar las sucursales para eliminar la indicada
-    nuevas_sucursales = [s for s in sucursales if s["SucursalID"] != sucursal_id]
-
-    if len(nuevas_sucursales) == len(sucursales):
-        return {"statusCode": 404, "body": json.dumps({"error": "Sucursal no encontrada"})}
-
-    # Guardar los cambios en DynamoDB
-    table.update_item(
-        Key={"FranquiciaID": franquicia_id},
-        UpdateExpression="SET Sucursales = :s",
-        ExpressionAttributeValues={":s": nuevas_sucursales}
+def eliminar_sucursal(franquicia_id, params):
+    if "sucursal_id" not in params:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Falta el parámetro 'sucursal_id'"})
+    
+    franquicia = franquicia_repo.get_item({"FranquiciaID": franquicia_id})
+    if not franquicia:
+        return response_json(HTTPStatus.NOT_FOUND, {"error": "Franquicia no encontrada"})
+    
+    sucursales = [s for s in franquicia.get("Sucursales", []) if s["SucursalID"] != params["sucursal_id"]]
+    
+    if len(sucursales) == len(franquicia.get("Sucursales", [])):
+        return response_json(HTTPStatus.NOT_FOUND, {"error": "Sucursal no encontrada"})
+    
+    franquicia_repo.update_item(
+        {"FranquiciaID": franquicia_id},
+        "SET Sucursales = :s",
+        {":s": sucursales}
     )
+    return response_json(HTTPStatus.OK, {"message": "Sucursal eliminada"})
 
-    return {"statusCode": 200, "body": json.dumps({"message": "Sucursal eliminada"})}
+def response_json(status_code, body):
+    return {
+        "statusCode": status_code,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(body)
+    }

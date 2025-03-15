@@ -11,33 +11,32 @@ def lambda_handler(event, context):
     metodo = str(event.get("httpMethod", "")).strip().upper()  # Limpiar y convertir método
 
     # Logs para depuración
-    print(f"Evento recibido: {json.dumps(event, indent=2)}")
-    print(f"Ruta recibida: {ruta}, Método recibido: {metodo}")
+    print(f"📌 Evento recibido: {json.dumps(event, indent=2)}")
+    print(f"📌 Ruta recibida: {ruta}, Método recibido: {metodo}")
 
     # Métodos permitidos
     metodos_permitidos = {"GET", "POST", "PUT", "DELETE"}
-    print(f"Lista de métodos permitidos: {metodos_permitidos}")
 
     # 🚀 Nueva verificación: Si no se recibe un método válido
     if not metodo:
-        print("ERROR: No se recibió un método HTTP válido.")
+        print("❌ ERROR: No se recibió un método HTTP válido.")
         return {"statusCode": 400, "body": json.dumps({"error": "Método HTTP no especificado."})}
 
     # Validar método HTTP antes de procesar rutas
     if metodo not in metodos_permitidos:
-        print(f"ERROR: Método '{metodo}' no permitido. Métodos válidos: {metodos_permitidos}")
+        print(f"❌ ERROR: Método '{metodo}' no permitido. Métodos válidos: {metodos_permitidos}")
         return {"statusCode": 400, "body": json.dumps({"error": "Método no soportado."})}
 
     # Manejo de rutas
     if ruta == "/":
         return {"statusCode": 200, "body": json.dumps({"message": "API funcionando correctamente"})}
     elif ruta == "/sucursales":
-        return manejar_sucursales(event, metodo)
+        return manejar_sucursales(event, context)
     elif ruta == "/productos":
-        return manejar_productos(event, metodo)
+        return manejar_productos(event, context)
     elif ruta == "/franquicias":
-        respuesta = manejar_franquicias(event, metodo)
-        print(f"Respuesta de manejar_franquicias: {respuesta}")  # Debug extra
+        respuesta = manejar_franquicias(event, context)
+        print(f"✅ Respuesta de manejar_franquicias: {respuesta}")  # Debug extra
         return respuesta
 
     # Si la ruta no se encuentra
