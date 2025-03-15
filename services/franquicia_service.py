@@ -1,89 +1,9 @@
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError
-
-class DynamoRepository:
-    """Clase para interactuar con DynamoDB."""
-
-    def __init__(self, table_name: str):
-        self.dynamodb = boto3.resource("dynamodb")
-        self.table = self.dynamodb.Table(table_name)
-
-    def get_item(self, key: dict):
-        """Obtiene un ítem de la tabla por su clave primaria."""
-        try:
-            response = self.table.get_item(Key=key)
-            return response.get("Item")
-        except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al obtener ítem de DynamoDB: {str(e)}")
-            return None
-
-    def put_item(self, item: dict):
-        """Inserta o actualiza un ítem en la tabla."""
-        try:
-            self.table.put_item(Item=item)
-        except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al insertar ítem en DynamoDB: {str(e)}")
-
-    def update_item(self, key: dict, update_expression: str, expression_values: dict):
-        """Actualiza un ítem en la tabla."""
-        try:
-            self.table.update_item(
-                Key=key,
-                UpdateExpression=update_expression,
-                ExpressionAttributeValues=expression_values
-            )
-        except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al actualizar ítem en DynamoDB: {str(e)}")
-
-    def delete_item(self, key: dict):
-        """Elimina un ítem de la tabla por su clave primaria."""
-        try:
-            self.table.delete_item(Key=key)
-        except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al eliminar ítem de DynamoDB: {str(e)}")
-
 import json
-from services.franquicia_service import FranquiciaService
-
-def manejar_franquicias(event, context, service=None):
-    """Manejador principal para la entidad franquicias."""
-    
-    service = service or FranquiciaService()
-    http_method = event.get("httpMethod", "").upper()
-
-    print(f"📌 Método recibido: {http_method}, Event: {json.dumps(event)}")
-
-    if http_method == "POST":
-        return manejar_creacion_franquicia(event, service)
-    elif http_method == "GET":
-        return manejar_obtener_franquicia(event, service)
-    elif http_method == "PUT":
-        return manejar_actualizar_franquicia(event, service)
-    elif http_method == "DELETE":
-        return manejar_eliminar_franquicia(event, service)
-
-    return respuesta(400, {"error": "Método no soportado."})
-
-def manejar_creacion_franquicia(event, service):
-    """Maneja la creación de una franquicia desde el body del request."""
-    try:
-        body = json.loads(event.get("body", "{}"))
-        nombre = body.get("nombre")
-
-        if not nombre:
-            return respuesta(400, {"error": "El parámetro 'nombre' es obligatorio."})
-
-        resultado = service.crear_franquicia(nombre)
-        return respuesta(201, resultado)
-
-    except Exception as e:
-        print(f"❌ Error en manejar_creacion_franquicia: {str(e)}")
-        return respuesta(500, {"error": f"Error interno: {str(e)}"})
-
 import uuid
+from botocore.exceptions import BotoCoreError, ClientError
 from typing import Optional, Dict, Any
 from repositories.dynamo_repository import DynamoRepository
-from botocore.exceptions import BotoCoreError, ClientError
 
 class FranquiciaService:
     """Servicio para manejar operaciones CRUD de franquicias con DynamoDB."""
@@ -130,3 +50,48 @@ class FranquiciaService:
             "message": error_tipo,
             "detail": detalle
         }
+
+def manejar_franquicias(event, context, service=None):
+    """Manejador principal para la entidad franquicias."""
+    
+    service = service or FranquiciaService()
+    http_method = event.get("httpMethod", "").upper()
+
+    print(f"📌 Método recibido: {http_method}, Event: {json.dumps(event)}")
+
+    if http_method == "POST":
+        return manejar_creacion_franquicia(event, service)
+    elif http_method == "GET":
+        return manejar_obtener_franquicia(event, service)
+    elif http_method == "PUT":
+        return manejar_actualizar_franquicia(event, service)
+    elif http_method == "DELETE":
+        return manejar_eliminar_franquicia(event, service)
+
+    return respuesta(400, {"error": "Método no soportado."})
+
+def manejar_creacion_franquicia(event, service):
+    """Maneja la creación de una franquicia desde el body del request."""
+    try:
+        body = json.loads(event.get("body", "{}"))
+        nombre = body.get("nombre")
+
+        if not nombre:
+            return respuesta(400, {"error": "El parámetro 'nombre' es obligatorio."})
+
+        resultado = service.crear_franquicia(nombre)
+        return respuesta(201, resultado)
+
+    except Exception as e:
+        print(f"❌ Error en manejar_creacion_franquicia: {str(e)}")
+        return respuesta(500, {"error": f"Error interno: {str(e)}"})
+
+def respuesta(status_code, body):
+    """Retorna una respuesta HTTP estándar."""
+    return {
+        "statusCode": status_code,
+        "body": json.dumps(body)
+    }
+
+if __name__ == "__main__":
+    print("⚡ Módulo franquicia_service.py listo para ejecución.")
