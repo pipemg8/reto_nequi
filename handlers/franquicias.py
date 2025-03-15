@@ -39,8 +39,10 @@ def manejar_creacion_franquicia(event, service):
 def manejar_obtener_franquicia(event, service):
     """Maneja la obtención de una franquicia."""
     try:
-        params = event.get("queryStringParameters", {}) or {}
-        franquicia_id = params.get("franquicia_id")
+        path_params = event.get("pathParameters") or {}
+        query_params = event.get("queryStringParameters") or {}
+
+        franquicia_id = path_params.get("franquicia_id") or query_params.get("franquicia_id")
 
         if not franquicia_id:
             return respuesta(400, {"error": "Se requiere 'franquicia_id'."})
@@ -57,10 +59,10 @@ def manejar_obtener_franquicia(event, service):
         return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def manejar_actualizar_franquicia(event, service):
-    """Maneja la actualización de una franquicia."""
+    """Maneja la actualización de una franquicia usando path parameters."""
     try:
-        path_params = event.get("pathParameters") or {}  # 🔍 Manejo seguro de pathParameters
-        print(f"Path Parameters procesados: {path_params}")  # 🛠 Depuración
+        path_params = event.get("pathParameters") or {}  
+        print(f"🔍 Path Parameters recibidos: {path_params}")  
         franquicia_id = path_params.get("franquicia_id")
 
         body = json.loads(event.get("body", "{}"))
@@ -77,10 +79,10 @@ def manejar_actualizar_franquicia(event, service):
         return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def manejar_eliminar_franquicia(event, service):
-    """Maneja la eliminación de una franquicia."""
+    """Maneja la eliminación de una franquicia usando path parameters."""
     try:
-        path_params = event.get("pathParameters") or {}  # 🔍 Manejo seguro de pathParameters
-        print(f"Path Parameters procesados: {path_params}")  # 🛠 Depuración
+        path_params = event.get("pathParameters") or {}  
+        print(f"🔍 Path Parameters recibidos: {path_params}")  
         franquicia_id = path_params.get("franquicia_id")
 
         if not franquicia_id:
