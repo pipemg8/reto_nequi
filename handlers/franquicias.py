@@ -8,7 +8,6 @@ def manejar_franquicias(event, context, service=None):
     http_method = event.get("httpMethod", "").upper()
 
     print(f"📌 Método recibido: {http_method}, Event: {json.dumps(event)}")
-    print(f"Path Parameters: {event.get('pathParameters')}")  # 🔍 Para depuración
 
     if http_method == "POST":
         return manejar_creacion_franquicia(event, service)
@@ -24,16 +23,17 @@ def manejar_franquicias(event, context, service=None):
 def manejar_creacion_franquicia(event, service):
     """Maneja la creación de una franquicia desde el body del request."""
     try:
-        body = json.loads(event.get("body", "{}"))  # Leer el body como JSON
+        body = json.loads(event.get("body", "{}"))
         nombre = body.get("nombre")
 
         if not nombre:
             return respuesta(400, {"error": "El parámetro 'nombre' es obligatorio."})
 
-        resultado = service.crear_franquicia(nombre)  # Llamar a la función del servicio correctamente
+        resultado = service.crear_franquicia(nombre)
         return respuesta(201, resultado)
 
     except Exception as e:
+        print(f"❌ Error en manejar_creacion_franquicia: {str(e)}")
         return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def manejar_obtener_franquicia(event, service):
@@ -53,13 +53,16 @@ def manejar_obtener_franquicia(event, service):
         return respuesta(200, franquicia)
 
     except Exception as e:
+        print(f"❌ Error en manejar_obtener_franquicia: {str(e)}")
         return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def manejar_actualizar_franquicia(event, service):
     """Maneja la actualización de una franquicia."""
     try:
-        path_params = event.get("pathParameters", {}) or {}
-        franquicia_id = path_params.get("franquicia_id")  # 🔍 Obtener ID de los parámetros de ruta
+        path_params = event.get("pathParameters") or {}  # 🔍 Manejo seguro de pathParameters
+        print(f"Path Parameters procesados: {path_params}")  # 🛠 Depuración
+        franquicia_id = path_params.get("franquicia_id")
+
         body = json.loads(event.get("body", "{}"))
         nuevo_nombre = body.get("nombre")
 
@@ -70,12 +73,14 @@ def manejar_actualizar_franquicia(event, service):
         return respuesta(200, resultado)
 
     except Exception as e:
+        print(f"❌ Error en manejar_actualizar_franquicia: {str(e)}")
         return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def manejar_eliminar_franquicia(event, service):
     """Maneja la eliminación de una franquicia."""
     try:
-        path_params = event.get("pathParameters", {}) or {}
+        path_params = event.get("pathParameters") or {}  # 🔍 Manejo seguro de pathParameters
+        print(f"Path Parameters procesados: {path_params}")  # 🛠 Depuración
         franquicia_id = path_params.get("franquicia_id")
 
         if not franquicia_id:
@@ -85,6 +90,7 @@ def manejar_eliminar_franquicia(event, service):
         return respuesta(200, resultado)
 
     except Exception as e:
+        print(f"❌ Error en manejar_eliminar_franquicia: {str(e)}")
         return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def respuesta(status_code, data):
@@ -92,5 +98,5 @@ def respuesta(status_code, data):
     return {
         "statusCode": status_code,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(data)  # ✅ Se asegura que el body siempre sea un JSON válido
+        "body": json.dumps(data)
     }
