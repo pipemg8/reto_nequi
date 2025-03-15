@@ -18,7 +18,7 @@ def manejar_franquicias(event, context, service=None):
     elif http_method == "DELETE":
         return manejar_eliminar_franquicia(event, service)
 
-    return respuesta(400, "Método no soportado.")
+    return respuesta(400, {"error": "Método no soportado."})
 
 def manejar_creacion_franquicia(event, service):
     """Maneja la creación de una franquicia desde el body del request."""
@@ -27,22 +27,32 @@ def manejar_creacion_franquicia(event, service):
         nombre = body.get("nombre")
 
         if not nombre:
-            return respuesta(400, "El parámetro 'nombre' es obligatorio.")
+            return respuesta(400, {"error": "El parámetro 'nombre' es obligatorio."})
 
-        return service.crear_franquicia(nombre)  # Llamar a la función del servicio correctamente
+        resultado = service.crear_franquicia(nombre)  # Llamar a la función del servicio correctamente
+        return respuesta(201, resultado)
 
     except Exception as e:
-        return respuesta(500, f"Error interno: {str(e)}")
+        return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def manejar_obtener_franquicia(event, service):
     """Maneja la obtención de una franquicia."""
-    params = event.get("queryStringParameters", {}) or {}
-    franquicia_id = params.get("franquicia_id")
+    try:
+        params = event.get("queryStringParameters", {}) or {}
+        franquicia_id = params.get("franquicia_id")
 
-    if not franquicia_id:
-        return respuesta(400, "Se requiere 'franquicia_id'.")
+        if not franquicia_id:
+            return respuesta(400, {"error": "Se requiere 'franquicia_id'."})
 
-    return service.obtener_franquicia(franquicia_id)
+        franquicia = service.obtener_franquicia(franquicia_id)
+
+        if not franquicia:
+            return respuesta(404, {"error": "Franquicia no encontrada."})
+
+        return respuesta(200, franquicia)
+
+    except Exception as e:
+        return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def manejar_actualizar_franquicia(event, service):
     """Maneja la actualización de una franquicia."""
@@ -52,27 +62,33 @@ def manejar_actualizar_franquicia(event, service):
         nuevo_nombre = body.get("nombre")
 
         if not franquicia_id or not nuevo_nombre:
-            return respuesta(400, "Se requieren 'franquicia_id' y 'nombre'.")
+            return respuesta(400, {"error": "Se requieren 'franquicia_id' y 'nombre'."})
 
-        return service.actualizar_franquicia(franquicia_id, nuevo_nombre)
+        resultado = service.actualizar_franquicia(franquicia_id, nuevo_nombre)
+        return respuesta(200, resultado)
 
     except Exception as e:
-        return respuesta(500, f"Error interno: {str(e)}")
+        return respuesta(500, {"error": f"Error interno: {str(e)}"})
 
 def manejar_eliminar_franquicia(event, service):
     """Maneja la eliminación de una franquicia."""
-    params = event.get("queryStringParameters", {}) or {}
-    franquicia_id = params.get("franquicia_id")
+    try:
+        params = event.get("queryStringParameters", {}) or {}
+        franquicia_id = params.get("franquicia_id")
 
-    if not franquicia_id:
-        return respuesta(400, "Se requiere 'franquicia_id'.")
+        if not franquicia_id:
+            return respuesta(400, {"error": "Se requiere 'franquicia_id'."})
 
-    return service.eliminar_franquicia(franquicia_id)
+        resultado = service.eliminar_franquicia(franquicia_id)
+        return respuesta(200, resultado)
 
-def respuesta(status_code, message):
+    except Exception as e:
+        return respuesta(500, {"error": f"Error interno: {str(e)}"})
+
+def respuesta(status_code, data):
     """Genera una respuesta HTTP estándar."""
     return {
         "statusCode": status_code,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({"message": message})
+        "body": json.dumps(data)  # ✅ Se asegura que el body siempre sea un JSON válido
     }

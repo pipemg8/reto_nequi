@@ -26,57 +26,85 @@ class FranquiciaService:
 
         try:
             self.repository.put_item(nueva_franquicia)
-            return nueva_franquicia
+            return {
+                "status": "success",
+                "message": "Franquicia creada correctamente.",
+                "data": nueva_franquicia
+            }
         except (ClientError, BotoCoreError) as e:
-            raise RuntimeError(f"Error en DynamoDB: {str(e)}")
+            return self._error_respuesta("Error en DynamoDB", str(e))
         except Exception as e:
-            raise RuntimeError(f"Error desconocido: {str(e)}")
+            return self._error_respuesta("Error desconocido", str(e))
 
     def obtener_franquicia(self, franquicia_id: str) -> Dict[str, Any]:
         """Obtiene una franquicia por ID."""
         self._validar_id(franquicia_id)
 
-        franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
-        if not franquicia:
-            raise KeyError("Franquicia no encontrada.")
-
-        return franquicia
+        try:
+            franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
+            if not franquicia:
+                return {
+                    "status": "error",
+                    "message": "Franquicia no encontrada."
+                }
+            return {
+                "status": "success",
+                "data": franquicia
+            }
+        except (ClientError, BotoCoreError) as e:
+            return self._error_respuesta("Error en DynamoDB", str(e))
+        except Exception as e:
+            return self._error_respuesta("Error desconocido", str(e))
 
     def actualizar_franquicia(self, franquicia_id: str, nuevo_nombre: str) -> Dict[str, Any]:
         """Actualiza el nombre de una franquicia existente."""
         self._validar_id(franquicia_id)
         self._validar_nombre(nuevo_nombre)
 
-        franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
-        if not franquicia:
-            raise KeyError("La franquicia no existe.")
-
         try:
+            franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
+            if not franquicia:
+                return {
+                    "status": "error",
+                    "message": "La franquicia no existe."
+                }
+
             self.repository.update_item(
                 {"FranquiciaID": franquicia_id},
                 "SET Nombre = :nombre",
                 {":nombre": nuevo_nombre}
             )
-            return {"FranquiciaID": franquicia_id, "Nombre": nuevo_nombre}
+            return {
+                "status": "success",
+                "message": "Franquicia actualizada correctamente.",
+                "data": {"FranquiciaID": franquicia_id, "Nombre": nuevo_nombre}
+            }
         except (ClientError, BotoCoreError) as e:
-            raise RuntimeError(f"Error en DynamoDB: {str(e)}")
+            return self._error_respuesta("Error en DynamoDB", str(e))
         except Exception as e:
-            raise RuntimeError(f"Error desconocido: {str(e)}")
+            return self._error_respuesta("Error desconocido", str(e))
 
-    def eliminar_franquicia(self, franquicia_id: str) -> None:
+    def eliminar_franquicia(self, franquicia_id: str) -> Dict[str, Any]:
         """Elimina una franquicia por su ID."""
         self._validar_id(franquicia_id)
 
-        franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
-        if not franquicia:
-            raise KeyError("La franquicia no existe.")
-
         try:
+            franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
+            if not franquicia:
+                return {
+                    "status": "error",
+                    "message": "La franquicia no existe."
+                }
+
             self.repository.delete_item({"FranquiciaID": franquicia_id})
+            return {
+                "status": "success",
+                "message": "Franquicia eliminada correctamente."
+            }
         except (ClientError, BotoCoreError) as e:
-            raise RuntimeError(f"Error en DynamoDB: {str(e)}")
+            return self._error_respuesta("Error en DynamoDB", str(e))
         except Exception as e:
-            raise RuntimeError(f"Error desconocido: {str(e)}")
+            return self._error_respuesta("Error desconocido", str(e))
 
     @staticmethod
     def _validar_id(franquicia_id: str):
@@ -87,3 +115,12 @@ class FranquiciaService:
     def _validar_nombre(nombre: str):
         if not nombre:
             raise ValueError("El parámetro 'nombre' es obligatorio.")
+
+    @staticmethod
+    def _error_respuesta(error_tipo: str, detalle: str) -> Dict[str, Any]:
+        """Genera un mensaje de error estándar."""
+        return {
+            "status": "error",
+            "message": error_tipo,
+            "detail": detalle
+        }
