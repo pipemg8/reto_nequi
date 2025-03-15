@@ -21,9 +21,9 @@ def manejar_franquicias(event, context, service=None):
 
     response = handlers.get(http_method, metodo_no_soportado)()
 
-    # Asegurar que el body sea un JSON válido
-    if isinstance(response.get("body"), str):
-        response["body"] = json.loads(response["body"])
+    # 💡 Asegurar que el body sea un JSON string
+    if isinstance(response.get("body"), dict):
+        response["body"] = json.dumps(response["body"])  # Convertir body a string JSON
 
     return response
 
@@ -48,5 +48,8 @@ def respuesta(status_code, message):
     """Genera una respuesta HTTP consistente"""
     return {
         "statusCode": status_code,
-        "body": json.dumps({"message": message})
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps({"message": message})  # Convertir a string JSON
     }
