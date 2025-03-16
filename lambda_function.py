@@ -31,26 +31,19 @@ def lambda_handler(event, context):
             "body": json.dumps({"error": "Método no soportado."}),
         }
 
+    # ✅ Ruta principal de salud
     if ruta == "/":
         return {
             "statusCode": 200,
             "body": json.dumps({"message": "API funcionando correctamente"}),
         }
 
+    # ✅ Manejo de sucursales
     elif ruta == "/sucursales":
         if metodo == "PUT":
             try:
-                # 🔹 Asegurar que event["body"] siempre sea un diccionario JSON válido
                 raw_body = event.get("body", "{}")
-                print(f"📌 Tipo de event['body']: {type(raw_body)}")
-                print(f"📥 Contenido bruto de event['body']: {raw_body}")
-
-                if isinstance(raw_body, str):
-                    body = json.loads(raw_body)
-                else:
-                    body = raw_body  # En caso de que ya sea un dict
-
-                print(f"📌 Cuerpo después de parseo: {body}")
+                body = json.loads(raw_body) if isinstance(raw_body, str) else raw_body
 
                 franquicia_id = body.get("franquicia_id")
                 sucursal_id = body.get("sucursal_id")
@@ -75,8 +68,8 @@ def lambda_handler(event, context):
                         "body": json.dumps({"error": "Se requiere 'nuevo_nombre'"}),
                     }
 
-                response = manejar_sucursales(event, context)
-                return response
+                # 🔹 SOLUCIÓN: Llamar la función manejar_sucursales y retornar su resultado
+                return manejar_sucursales(event, context)
 
             except json.JSONDecodeError:
                 return {
@@ -85,19 +78,23 @@ def lambda_handler(event, context):
                     "body": json.dumps({"error": "Formato JSON inválido."}),
                 }
 
+        # 🔹 Si es otro método, seguir con el flujo normal
         return manejar_sucursales(event, context)
 
+    # ✅ Manejo de productos
     elif ruta == "/productos":
         return manejar_productos(event, context)
 
     elif ruta == "/productos/mas_stock":
         return manejar_productos(event, context)
 
+    # ✅ Manejo de franquicias
     elif ruta == "/franquicias":
         respuesta = manejar_franquicias(event, context)
         print(f"✅ Respuesta de manejar_franquicias: {respuesta}")
         return respuesta
 
+    # ❌ Si la ruta no se encuentra
     print(f"❌ ERROR: Ruta '{ruta}' no encontrada.")
     return {
         "statusCode": 404,
