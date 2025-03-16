@@ -41,7 +41,7 @@ def manejar_productos(event, context):
     # 🔹 Manejo de ruta específica: "/productos/mas_stock"
     if metodo == "GET" and ruta == "/productos/mas_stock":
         return validar_y_ejecutar(
-            producto_service.mas_stock, 
+            producto_service.obtener_producto_mas_stock, 
             params, 
             ["franquicia_id"]
         )
