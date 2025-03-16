@@ -46,28 +46,24 @@ class DynamoRepository:
                 return False
 
             sucursales = franquicia.get("Sucursales", [])
-            sucursal_encontrada = False
+            index = next((i for i, s in enumerate(sucursales) if s["SucursalID"] == sucursal_id), -1)
 
-            # 🔄 Buscar la sucursal en la lista y actualizar su nombre
-            for sucursal in sucursales:
-                if sucursal["SucursalID"] == sucursal_id:
-                    sucursal["Nombre"] = nuevo_nombre
-                    sucursal_encontrada = True
-                    break
-
-            if not sucursal_encontrada:
+            if index == -1:
                 print(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
                 return False
 
-            # 📝 Sobrescribir la lista de sucursales actualizada en DynamoDB
+            # 📝 Actualizar directamente el nombre en la posición específica
+            update_expression = f"SET Sucursales[{index}].Nombre = :nuevo_nombre"
+            expression_values = {":nuevo_nombre": nuevo_nombre}
+
             resultado = self.update_item(
                 key={"FranquiciaID": franquicia_id},
-                update_expression="SET Sucursales = :s",
-                expression_values={":s": sucursales}
+                update_expression=update_expression,
+                expression_values=expression_values
             )
 
             if resultado:
-                print(f"✅ Sucursal {sucursal_id} actualizada correctamente.")
+                print(f"✅ Sucursal {sucursal_id} actualizada correctamente a '{nuevo_nombre}'.")
                 return True
             else:
                 print(f"⚠️ No se pudo actualizar la sucursal {sucursal_id}.")
