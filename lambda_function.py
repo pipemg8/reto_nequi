@@ -20,61 +20,78 @@ def lambda_handler(event, context):
     # 🚀 Nueva verificación: Si no se recibe un método válido
     if not metodo:
         print("❌ ERROR: No se recibió un método HTTP válido.")
-        return {"statusCode": 400, "body": json.dumps({"error": "Método HTTP no especificado."})}
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": "Método HTTP no especificado."}),
+        }
 
     # Validar método HTTP antes de procesar rutas
     if metodo not in metodos_permitidos:
         print(f"❌ ERROR: Método '{metodo}' no permitido.")
-        return {"statusCode": 405, "body": json.dumps({"error": "Método no soportado."})}
+        return {
+            "statusCode": 405,
+            "body": json.dumps({"error": "Método no soportado."}),
+        }
 
     # ✅ Mantenimiento del manejo de rutas sin alteraciones
     if ruta == "/":
-        return {"statusCode": 200, "body": json.dumps({"message": "API funcionando correctamente"})}
-    
+        return {
+            "statusCode": 200,
+            "body": json.dumps({"message": "API funcionando correctamente"}),
+        }
+
     elif ruta == "/sucursales":
         if metodo == "PUT":
             try:
-                # Manejo seguro del body
+                # Validar si event["body"] es None antes de parsear
                 body = json.loads(event["body"]) if event.get("body") else {}
 
-                # Extraer datos del body
+                # Depurar qué datos llegan realmente
+                print(f"📥 Cuerpo recibido después de parsear: {body}")
+
                 franquicia_id = body.get("franquicia_id")
                 sucursal_id = body.get("sucursal_id")
                 nuevo_nombre = body.get("nuevo_nombre")
 
-                print(f"✏️ Datos recibidos - franquicia_id: {franquicia_id}, sucursal_id: {sucursal_id}, nuevo_nombre: {nuevo_nombre}")
-
-                # Validaciones específicas
+                # Validar datos obligatorios
                 if not franquicia_id:
-                    print("❌ ERROR: 'franquicia_id' es requerido.")
-                    return {"statusCode": 400, "body": json.dumps({"error": "Se requiere 'franquicia_id'"})}
-
+                    return {
+                        "statusCode": 400,
+                        "headers": {"Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Se requiere 'franquicia_id'"}),
+                    }
                 if not sucursal_id:
-                    print("❌ ERROR: 'sucursal_id' es requerido.")
-                    return {"statusCode": 400, "body": json.dumps({"error": "Se requiere 'sucursal_id'"})}
-
+                    return {
+                        "statusCode": 400,
+                        "headers": {"Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Se requiere 'sucursal_id'"}),
+                    }
                 if not nuevo_nombre:
-                    print("❌ ERROR: 'nuevo_nombre' es requerido.")
-                    return {"statusCode": 400, "body": json.dumps({"error": "Se requiere 'nuevo_nombre'"})}
+                    return {
+                        "statusCode": 400,
+                        "headers": {"Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Se requiere 'nuevo_nombre'"}),
+                    }
 
-                # Llamar a la capa de servicio
+                # Si todo está correcto, llamar a manejar_sucursales
                 response = manejar_sucursales(event, context)
-                print(f"✅ Respuesta de manejar_sucursales: {response}")
-
                 return response
-            
+
             except json.JSONDecodeError:
-                print("❌ ERROR: JSON inválido en la solicitud.")
-                return {"statusCode": 400, "body": json.dumps({"error": "Formato JSON inválido."})}
+                return {
+                    "statusCode": 400,
+                    "headers": {"Content-Type": "application/json"},
+                    "body": json.dumps({"error": "Formato JSON inválido."}),
+                }
 
         return manejar_sucursales(event, context)
 
     elif ruta == "/productos":
         return manejar_productos(event, context)
-    
+
     elif ruta == "/productos/mas_stock":
         return manejar_productos(event, context)
-    
+
     elif ruta == "/franquicias":
         respuesta = manejar_franquicias(event, context)
         print(f"✅ Respuesta de manejar_franquicias: {respuesta}")
@@ -82,4 +99,7 @@ def lambda_handler(event, context):
 
     # ❌ Si la ruta no se encuentra
     print(f"❌ ERROR: Ruta '{ruta}' no encontrada.")
-    return {"statusCode": 404, "body": json.dumps({"error": "Ruta no encontrada"})}
+    return {
+        "statusCode": 404,
+        "body": json.dumps({"error": "Ruta no encontrada"}),
+    }
