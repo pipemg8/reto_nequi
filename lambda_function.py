@@ -44,6 +44,8 @@ def lambda_handler(event, context):
         if metodo == "PUT":
             try:
                 # Validar si event["body"] es None antes de parsear
+                print(f"📌 Tipo de event['body']: {type(event.get('body'))}")
+                print(f"📥 Contenido bruto de event['body']: {event.get('body')}")
                 body = json.loads(event["body"]) if event.get("body") else {}
 
                 # Depurar qué datos llegan realmente
