@@ -34,17 +34,30 @@ def lambda_handler(event, context):
     elif ruta == "/sucursales":
         if metodo == "PUT":
             try:
-                body = json.loads(event["body"]) if "body" in event and event["body"] else {}
+                # Manejo seguro del body
+                body = json.loads(event["body"]) if event.get("body") else {}
+
+                # Extraer datos del body
                 franquicia_id = body.get("franquicia_id")
                 sucursal_id = body.get("sucursal_id")
                 nuevo_nombre = body.get("nuevo_nombre")
 
-                print(f"✏️ Actualizando sucursal: {sucursal_id} con nuevo nombre '{nuevo_nombre}'")
+                print(f"✏️ Datos recibidos - franquicia_id: {franquicia_id}, sucursal_id: {sucursal_id}, nuevo_nombre: {nuevo_nombre}")
 
-                if not franquicia_id or not sucursal_id or not nuevo_nombre:
-                    print("❌ ERROR: Datos faltantes en la solicitud.")
-                    return {"statusCode": 400, "body": json.dumps({"error": "Datos incompletos para actualizar sucursal."})}
+                # Validaciones específicas
+                if not franquicia_id:
+                    print("❌ ERROR: 'franquicia_id' es requerido.")
+                    return {"statusCode": 400, "body": json.dumps({"error": "Se requiere 'franquicia_id'"})}
 
+                if not sucursal_id:
+                    print("❌ ERROR: 'sucursal_id' es requerido.")
+                    return {"statusCode": 400, "body": json.dumps({"error": "Se requiere 'sucursal_id'"})}
+
+                if not nuevo_nombre:
+                    print("❌ ERROR: 'nuevo_nombre' es requerido.")
+                    return {"statusCode": 400, "body": json.dumps({"error": "Se requiere 'nuevo_nombre'"})}
+
+                # Llamar a la capa de servicio
                 response = manejar_sucursales(event, context)
                 print(f"✅ Respuesta de manejar_sucursales: {response}")
 
