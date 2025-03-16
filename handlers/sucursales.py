@@ -4,44 +4,77 @@ import logging
 from http import HTTPStatus
 from repositories.dynamo_repository import DynamoRepository
 
-# Configurar logs para depuración
+# Configurar logs
 logging.basicConfig(level=logging.INFO)
 
-# Inicializar el repositorio para la tabla de franquicias
+# Inicializar el repositorio
 franquicia_repo = DynamoRepository("Franquicias")
 
 def manejar_sucursales(event, context):
     """ Punto de entrada principal para manejar solicitudes HTTP """
-    logging.info(f"Evento recibido: {json.dumps(event)}")  # Log para depuración
+    logging.info(f"📌 Evento recibido: {json.dumps(event)}")
 
-    method = event.get("httpMethod")
-    path = event.get("pathParameters", {}) or {}
+    method = event.get("httpMethod", "").upper()
 
-    if path and "franquicia_id" in path:
-        franquicia_id = path["franquicia_id"]
+    # Obtener parámetros de la ruta y query
+    path_params = event.get("pathParameters") or {}
+    query_params = event.get("queryStringParameters") or {}
 
-        if method == "GET":
-            return obtener_sucursales(franquicia_id)
-        elif method == "POST":
-            return crear_sucursal(franquicia_id, event)
-        elif method == "PUT":
-            return actualizar_sucursal(franquicia_id, event)
-        elif method == "DELETE":
-            return eliminar_sucursal(franquicia_id, event)
+    # Extraer franquicia_id si existe
+    franquicia_id = path_params.get("franquicia_id") or query_params.get("franquicia_id")
+
+    if method == "POST" and not franquicia_id:
+        return crear_franquicia_con_sucursal(event)
+
+    if not franquicia_id:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Se requiere 'franquicia_id'"})
+
+    if method == "GET":
+        return obtener_sucursales(franquicia_id)
+    elif method == "POST":
+        return crear_sucursal(franquicia_id, event)
+    elif method == "PUT":
+        return actualizar_sucursal(franquicia_id, event)
+    elif method == "DELETE":
+        return eliminar_sucursal(franquicia_id, event)
 
     return response_json(HTTPStatus.BAD_REQUEST, {"error": "Ruta o método no soportado"})
+
+def crear_franquicia_con_sucursal(event):
+    """ Crea una nueva franquicia con su primera sucursal """
+    body = json.loads(event.get("body", "{}"))
+
+    if "nombre_franquicia" not in body or "nombre_sucursal" not in body:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Se requieren 'nombre_franquicia' y 'nombre_sucursal'"})
+
+    franquicia_id = str(uuid.uuid4())
+    sucursal_id = str(uuid.uuid4())
+
+    nueva_franquicia = {
+        "FranquiciaID": franquicia_id,
+        "Nombre": body["nombre_franquicia"],
+        "Sucursales": [{"SucursalID": sucursal_id, "Nombre": body["nombre_sucursal"]}]
+    }
+
+    franquicia_repo.put_item(nueva_franquicia)
+
+    return response_json(HTTPStatus.CREATED, {
+        "message": "Franquicia creada",
+        "FranquiciaID": franquicia_id,
+        "SucursalID": sucursal_id
+    })
 
 def obtener_sucursales(franquicia_id):
     franquicia = franquicia_repo.get_item({"FranquiciaID": franquicia_id})
     if not franquicia:
         return response_json(HTTPStatus.NOT_FOUND, {"error": "Franquicia no encontrada"})
-    
+
     sucursales = franquicia.get("Sucursales", [])
     return response_json(HTTPStatus.OK, {"sucursales": sucursales})
 
 def crear_sucursal(franquicia_id, event):
     """ Crea una sucursal para una franquicia dada """
-    body = json.loads(event.get("body", "{}"))  # Convertir body JSON a diccionario
+    body = json.loads(event.get("body", "{}"))
 
     if "nombre" not in body:
         return response_json(HTTPStatus.BAD_REQUEST, {"error": "Falta el parámetro 'nombre'"})
