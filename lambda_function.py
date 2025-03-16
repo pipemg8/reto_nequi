@@ -3,6 +3,7 @@ from handlers.franquicias import manejar_franquicias
 from handlers.sucursales import manejar_sucursales
 from handlers.productos import manejar_productos
 
+
 def lambda_handler(event, context):
     """Manejador principal de la API Lambda"""
 
@@ -11,8 +12,8 @@ def lambda_handler(event, context):
     metodo = str(event.get("httpMethod", "")).strip().upper()  # Limpiar y convertir método
 
     # Logs para depuración
-    print(f"📌 Evento recibido: {json.dumps(event, indent=2)}")
-    print(f"📌 Ruta recibida: {ruta}, Método recibido: {metodo}")
+    print(f"\ud83d\udccc Evento recibido: {json.dumps(event, indent=2)}")
+    print(f"\ud83d\udccc Ruta recibida: {ruta}, Método recibido: {metodo}")
 
     # Métodos permitidos
     metodos_permitidos = {"GET", "POST", "PUT", "DELETE"}
@@ -34,6 +35,8 @@ def lambda_handler(event, context):
         return manejar_sucursales(event, context)
     elif ruta == "/productos":
         return manejar_productos(event, context)
+    elif ruta == "/productos/mas_stock":  # ✅ Se agrega la nueva ruta
+        return manejar_productos(event, context, es_mas_stock=True)
     elif ruta == "/franquicias":
         respuesta = manejar_franquicias(event, context)
         print(f"✅ Respuesta de manejar_franquicias: {respuesta}")  # Debug extra
