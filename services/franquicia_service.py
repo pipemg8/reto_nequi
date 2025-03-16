@@ -1,12 +1,13 @@
 import uuid
 from typing import Optional, Dict, Any
+from repositories.franquicia_repository import FranquiciaRepository
 
 class FranquiciaService:
     """Servicio para manejar operaciones CRUD de franquicias."""
 
-    def __init__(self, repository):
-        """Inicializa el servicio con un repositorio externo."""
-        self.repository = repository
+    def __init__(self, repository=None):
+        """Inicializa el servicio con un repositorio externo, o usa uno por defecto."""
+        self.repository = repository or FranquiciaRepository()
 
     def franquicia_existe(self, franquicia_id: str) -> bool:
         """Verifica si una franquicia con el ID dado existe en el repositorio."""
