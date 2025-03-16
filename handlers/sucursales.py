@@ -2,7 +2,7 @@ import json
 import uuid
 import logging
 from http import HTTPStatus
-from repositories.dynamo_repository import DynamoRepository
+from services.sucursal_service import SucursalService
 
 # Configurar logs
 logging.basicConfig(level=logging.INFO)
