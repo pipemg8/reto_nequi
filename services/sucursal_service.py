@@ -94,5 +94,5 @@ class SucursalService:
         """Genera una respuesta estándar."""
         response_body = {"message": message}
         if data:
-            response_body["data"] = data}
+            response_body["data"] = data
         return {"statusCode": status_code, "body": json.dumps(response_body)}
