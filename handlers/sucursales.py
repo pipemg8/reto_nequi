@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 # Inicializar el repositorio
 franquicia_repo = DynamoRepository("Franquicias")
 
+
 def manejar_sucursales(event, context):
     """ Punto de entrada principal para manejar solicitudes HTTP """
     logging.info(f"📌 Evento recibido: {json.dumps(event)}")
@@ -40,9 +41,18 @@ def manejar_sucursales(event, context):
 
     return response_json(HTTPStatus.BAD_REQUEST, {"error": "Ruta o método no soportado"})
 
+
+def obtener_body(event):
+    """ Obtiene el body del evento de forma segura """
+    try:
+        return json.loads(event.get("body", "{}")) if event.get("body") else {}
+    except json.JSONDecodeError:
+        return {}
+
+
 def crear_franquicia_con_sucursal(event):
     """ Crea una nueva franquicia con su primera sucursal """
-    body = json.loads(event.get("body", "{}"))
+    body = obtener_body(event)
 
     if "nombre_franquicia" not in body or "nombre_sucursal" not in body:
         return response_json(HTTPStatus.BAD_REQUEST, {"error": "Se requieren 'nombre_franquicia' y 'nombre_sucursal'"})
@@ -64,6 +74,7 @@ def crear_franquicia_con_sucursal(event):
         "SucursalID": sucursal_id
     })
 
+
 def obtener_sucursales(franquicia_id):
     franquicia = franquicia_repo.get_item({"FranquiciaID": franquicia_id})
     if not franquicia:
@@ -72,9 +83,10 @@ def obtener_sucursales(franquicia_id):
     sucursales = franquicia.get("Sucursales", [])
     return response_json(HTTPStatus.OK, {"sucursales": sucursales})
 
+
 def crear_sucursal(franquicia_id, event):
     """ Crea una sucursal para una franquicia dada """
-    body = json.loads(event.get("body", "{}"))
+    body = obtener_body(event)
 
     if "nombre" not in body:
         return response_json(HTTPStatus.BAD_REQUEST, {"error": "Falta el parámetro 'nombre'"})
@@ -95,9 +107,10 @@ def crear_sucursal(franquicia_id, event):
 
     return response_json(HTTPStatus.CREATED, {"message": "Sucursal creada", "SucursalID": sucursal_id})
 
+
 def actualizar_sucursal(franquicia_id, event):
     """ Actualiza el nombre de una sucursal existente """
-    body = json.loads(event.get("body", "{}"))
+    body = obtener_body(event)
 
     if "sucursal_id" not in body or "nombre" not in body:
         return response_json(HTTPStatus.BAD_REQUEST, {"error": "Faltan parámetros 'sucursal_id' o 'nombre'"})
@@ -122,9 +135,10 @@ def actualizar_sucursal(franquicia_id, event):
 
     return response_json(HTTPStatus.OK, {"message": "Sucursal actualizada"})
 
+
 def eliminar_sucursal(franquicia_id, event):
     """ Elimina una sucursal específica """
-    body = json.loads(event.get("body", "{}"))
+    body = obtener_body(event)
 
     if "sucursal_id" not in body:
         return response_json(HTTPStatus.BAD_REQUEST, {"error": "Falta el parámetro 'sucursal_id'"})
@@ -145,6 +159,7 @@ def eliminar_sucursal(franquicia_id, event):
     )
 
     return response_json(HTTPStatus.OK, {"message": "Sucursal eliminada"})
+
 
 def response_json(status_code, body):
     """ Formatea la respuesta en JSON """
