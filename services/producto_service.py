@@ -7,68 +7,62 @@ from services.sucursal_service import SucursalService
 
 class ProductoService:
     """Servicio para gestionar productos en sucursales."""
-    
+
     def __init__(self, repositorio: DynamoRepository):
         self.repositorio = repositorio
         self.sucursal_service = SucursalService()
 
     def agregar_producto(self, franquicia_id: str, sucursal_id: str, nombre: str) -> Dict[str, Any]:
-        """
-        Agrega un producto a una sucursal específica de una franquicia.
-        """
-        if not all([franquicia_id, sucursal_id, nombre]):
-            return self._response(HTTPStatus.BAD_REQUEST, "Se requieren 'franquicia_id', 'sucursal_id' y 'nombre'.")
-        
-        franquicia = self.repositorio.get_item({"FranquiciaID": franquicia_id})
+        """Agrega un producto a una sucursal específica de una franquicia."""
+        if any(not isinstance(param, str) or not param.strip() for param in [franquicia_id, sucursal_id, nombre]):
+            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos: 'franquicia_id', 'sucursal_id' y 'nombre' son obligatorios.")
+
+        franquicia = self.obtener_franquicia(franquicia_id)
         if not franquicia:
             return self._response(HTTPStatus.NOT_FOUND, "Franquicia no encontrada.")
 
-        sucursales = franquicia.get("Sucursales", [])
-        sucursal = next((s for s in sucursales if s["SucursalID"] == sucursal_id), None)
+        sucursal = next((s for s in franquicia.get("Sucursales", []) if s["SucursalID"] == sucursal_id), None)
         if not sucursal:
             return self._response(HTTPStatus.NOT_FOUND, "Sucursal no encontrada.")
-        
+
         producto_id = str(uuid.uuid4())
         sucursal.setdefault("Productos", []).append({
             "ProductoID": producto_id,
             "Nombre": nombre
         })
-        
-        try:
-            self.repositorio.actualizar_franquicia(franquicia_id, sucursales)
+
+        if self.repositorio.actualizar_franquicia(franquicia_id, franquicia.get("Sucursales", [])):
             return self._response(HTTPStatus.CREATED, "Producto agregado exitosamente.", {"ProductoID": producto_id})
-        except Exception as e:
-            return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, f"Error al agregar producto: {str(e)}")
+        return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, "Error al actualizar franquicia.")
 
     def eliminar_producto(self, franquicia_id: str, sucursal_id: str, producto_id: str) -> Dict[str, Any]:
-        """
-        Elimina un producto de una sucursal específica.
-        """
-        if not all([franquicia_id, sucursal_id, producto_id]):
-            return self._response(HTTPStatus.BAD_REQUEST, "Se requieren 'franquicia_id', 'sucursal_id' y 'producto_id'.")
+        """Elimina un producto de una sucursal específica."""
+        if any(not isinstance(param, str) or not param.strip() for param in [franquicia_id, sucursal_id, producto_id]):
+            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos: 'franquicia_id', 'sucursal_id' y 'producto_id' son obligatorios.")
 
-        franquicia = self.repositorio.get_item({"FranquiciaID": franquicia_id})
+        franquicia = self.obtener_franquicia(franquicia_id)
         if not franquicia:
             return self._response(HTTPStatus.NOT_FOUND, "Franquicia no encontrada.")
-        
-        sucursales = franquicia.get("Sucursales", [])
-        sucursal = next((s for s in sucursales if s["SucursalID"] == sucursal_id), None)
+
+        sucursal = next((s for s in franquicia.get("Sucursales", []) if s["SucursalID"] == sucursal_id), None)
         if not sucursal:
             return self._response(HTTPStatus.NOT_FOUND, "Sucursal no encontrada.")
-        
+
         productos = sucursal.get("Productos", [])
-        nuevo_productos = [p for p in productos if p["ProductoID"] != producto_id]
-        
-        if len(nuevo_productos) == len(productos):
+        nuevos_productos = [p for p in productos if p["ProductoID"] != producto_id]
+
+        if len(nuevos_productos) == len(productos):
             return self._response(HTTPStatus.NOT_FOUND, "Producto no encontrado.")
-        
-        sucursal["Productos"] = nuevo_productos
-        
-        try:
-            self.repositorio.actualizar_franquicia(franquicia_id, sucursales)
+
+        sucursal["Productos"] = nuevos_productos
+
+        if self.repositorio.actualizar_franquicia(franquicia_id, franquicia.get("Sucursales", [])):
             return self._response(HTTPStatus.OK, "Producto eliminado exitosamente.")
-        except Exception as e:
-            return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, f"Error al eliminar producto: {str(e)}")
+        return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, "Error al actualizar franquicia.")
+
+    def obtener_franquicia(self, franquicia_id: str) -> Optional[Dict[str, Any]]:
+        """Obtiene una franquicia de la base de datos."""
+        return self.repositorio.get_item({"FranquiciaID": franquicia_id})
 
     @staticmethod
     def _response(status_code: int, message: str, data: Optional[Dict] = None) -> Dict[str, Any]:

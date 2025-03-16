@@ -46,7 +46,7 @@ class DynamoRepository:
         except (ClientError, BotoCoreError) as e:
             print(f"❌ Error al eliminar ítem de DynamoDB: {str(e)}")
 
-    def actualizar_franquicia(self, franquicia_id: str, sucursales: list):
+    def actualizar_franquicia(self, franquicia_id: str, sucursales: list) -> bool:
         """Actualiza la lista de sucursales de una franquicia en DynamoDB."""
         try:
             self.update_item(
@@ -54,5 +54,7 @@ class DynamoRepository:
                 update_expression="SET Sucursales = :s",
                 expression_values={":s": sucursales}
             )
+            return True
         except (ClientError, BotoCoreError) as e:
             print(f"❌ Error al actualizar franquicia en DynamoDB: {str(e)}")
+            return False
