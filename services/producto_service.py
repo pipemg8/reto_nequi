@@ -33,6 +33,29 @@ class ProductoService:
             return self._response(HTTPStatus.CREATED, "Producto agregado exitosamente.", {"ProductoID": producto_id})
         return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, "Error al actualizar franquicia en DynamoDB.")
 
+    def actualizar_producto(self, franquicia_id: str, sucursal_id: str, producto_id: str, nombre: str) -> Dict[str, Any]:
+        """Actualiza el nombre de un producto en una sucursal específica."""
+        if not all(isinstance(param, str) and param.strip() for param in [franquicia_id, sucursal_id, producto_id, nombre]):
+            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos: 'franquicia_id', 'sucursal_id', 'producto_id' y 'nombre' son obligatorios.")
+
+        franquicia = self.repositorio.get_item({"FranquiciaID": franquicia_id})
+        if not franquicia:
+            return self._response(HTTPStatus.NOT_FOUND, "Franquicia no encontrada.")
+
+        sucursal = next((s for s in franquicia.get("Sucursales", []) if s["SucursalID"] == sucursal_id), None)
+        if not sucursal:
+            return self._response(HTTPStatus.NOT_FOUND, "Sucursal no encontrada.")
+
+        producto = next((p for p in sucursal.get("Productos", []) if p["ProductoID"] == producto_id), None)
+        if not producto:
+            return self._response(HTTPStatus.NOT_FOUND, "Producto no encontrado.")
+
+        producto["Nombre"] = nombre
+
+        if self.repositorio.actualizar_franquicia(franquicia_id, franquicia["Sucursales"]):
+            return self._response(HTTPStatus.OK, "Producto actualizado exitosamente.")
+        return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, "Error al actualizar franquicia en DynamoDB.")
+
     def eliminar_producto(self, franquicia_id: str, sucursal_id: str, producto_id: str) -> Dict[str, Any]:
         """Elimina un producto de una sucursal específica."""
         if not all(isinstance(param, str) and param.strip() for param in [franquicia_id, sucursal_id, producto_id]):
