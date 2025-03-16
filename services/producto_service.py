@@ -43,6 +43,34 @@ class ProductoService:
         except Exception as e:
             return self._response(500, f"Error al agregar producto: {str(e)}")
 
+    def eliminar_producto(self, sucursal_id: str, producto_id: str) -> Dict[str, Any]:
+        """
+        Elimina un producto de una sucursal.
+
+        Retorna:
+        - Respuesta estándar con código de estado y mensaje.
+        """
+        if not sucursal_id or not producto_id:
+            return self._response(400, "Se requieren 'sucursal_id' y 'producto_id'.")
+
+        # Obtener todas las franquicias para buscar la sucursal
+        franquicias = self.sucursal_service.obtener_todas_franquicias()
+        for franquicia in franquicias:
+            sucursal = self.sucursal_service.obtener_sucursal(franquicia, sucursal_id)
+            if sucursal:
+                productos = sucursal.get("Productos", [])
+                for producto in productos:
+                    if producto["ProductoID"] == producto_id:
+                        productos.remove(producto)
+                        try:
+                            self.sucursal_service.actualizar_franquicia(franquicia["FranquiciaID"], franquicia["Sucursales"])
+                            return self._response(200, "Producto eliminado exitosamente.")
+                        except Exception as e:
+                            return self._response(500, f"Error al eliminar producto: {str(e)}")
+                return self._response(404, "Producto no encontrado.")
+
+        return self._response(404, "Sucursal no encontrada.")
+
     @staticmethod
     def _response(status_code: int, message: str, data: Optional[Dict] = None) -> Dict[str, Any]:
         """Genera una respuesta estándar."""

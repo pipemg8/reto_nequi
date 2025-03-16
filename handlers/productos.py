@@ -1,8 +1,11 @@
 import json
 from http import HTTPStatus
 from services.producto_service import ProductoService
+from repositories.producto_repositorio import ProductoRepositorio  # Asegura que el repositorio se importe correctamente
 
-producto_service = ProductoService()
+# Se inicializa el servicio con su repositorio
+repositorio_producto = ProductoRepositorio()
+producto_service = ProductoService(repositorio_producto)
 
 def response_json(status, message):
     """Genera una respuesta JSON estándar."""
@@ -50,7 +53,9 @@ def validar_y_ejecutar(func, params, required_params):
 
     try:
         resultado = func(*[params[param] for param in required_params])
-        return response_json(HTTPStatus.OK, resultado)
+        return response_json(HTTPStatus.OK, {"mensaje": "Operación exitosa", "resultado": resultado})
+    except AttributeError as e:
+        return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error de atributo en el servicio", "detalle": str(e)})
     except Exception as e:
         return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error interno en el servidor", "detalle": str(e)})
 
