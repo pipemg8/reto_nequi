@@ -11,12 +11,12 @@ class ProductoService:
     def __init__(self, repositorio: Optional[DynamoRepository] = None):
         """Inicializa el servicio con un repositorio de DynamoDB."""
         self.repositorio = repositorio or DynamoRepository("Franquicias")
-        self.sucursal_service = SucursalService(self.repositorio)  # ✅ Se pasa correctamente el repositorio
+        self.sucursal_service = SucursalService(self.repositorio)
 
     def agregar_producto(self, franquicia_id: str, sucursal_id: str, nombre: str, stock: int = 0) -> Dict[str, Any]:
         """Agrega un producto a una sucursal específica de una franquicia."""
         if not all(isinstance(param, str) and param.strip() for param in [franquicia_id, sucursal_id, nombre]) or not isinstance(stock, int):
-            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos: 'franquicia_id', 'sucursal_id', 'nombre' y 'stock' son obligatorios.")
+            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos.")
 
         franquicia = self.repositorio.get_item({"FranquiciaID": franquicia_id})
         if not franquicia:
@@ -36,10 +36,10 @@ class ProductoService:
     def actualizar_producto(self, franquicia_id: str, sucursal_id: str, producto_id: str, nombre: Optional[str] = None, stock: Optional[int] = None) -> Dict[str, Any]:
         """Actualiza los datos de un producto en una sucursal específica."""
         if not all(isinstance(param, str) and param.strip() for param in [franquicia_id, sucursal_id, producto_id]):
-            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos: 'franquicia_id', 'sucursal_id' y 'producto_id' son obligatorios.")
+            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos.")
 
         if nombre is None and stock is None:
-            return self._response(HTTPStatus.BAD_REQUEST, "Debe proporcionar al menos un parámetro para actualizar: 'nombre' o 'stock'.")
+            return self._response(HTTPStatus.BAD_REQUEST, "Debe proporcionar al menos un parámetro para actualizar.")
 
         franquicia = self.repositorio.get_item({"FranquiciaID": franquicia_id})
         if not franquicia:
@@ -65,7 +65,7 @@ class ProductoService:
     def eliminar_producto(self, franquicia_id: str, sucursal_id: str, producto_id: str) -> Dict[str, Any]:
         """Elimina un producto de una sucursal específica."""
         if not all(isinstance(param, str) and param.strip() for param in [franquicia_id, sucursal_id, producto_id]):
-            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos: 'franquicia_id', 'sucursal_id' y 'producto_id' son obligatorios.")
+            return self._response(HTTPStatus.BAD_REQUEST, "Parámetros inválidos.")
 
         franquicia = self.repositorio.get_item({"FranquiciaID": franquicia_id})
         if not franquicia:
@@ -97,12 +97,13 @@ class ProductoService:
             producto
             for sucursal in franquicia.get("Sucursales", [])
             for producto in sucursal.get("Productos", [])
+            if "Stock" in producto and isinstance(producto["Stock"], int)
         ]
 
         if not productos:
-            return self._response(HTTPStatus.NOT_FOUND, "No se encontraron productos en la franquicia.")
+            return self._response(HTTPStatus.NOT_FOUND, "No se encontraron productos con stock en la franquicia.")
 
-        producto_mas_stock = max(productos, key=lambda p: p["Stock"])
+        producto_mas_stock = max(productos, key=lambda p: p.get("Stock", 0))
 
         return self._response(HTTPStatus.OK, "Producto con mayor stock encontrado.", producto_mas_stock)
 
