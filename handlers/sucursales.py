@@ -70,11 +70,20 @@ def crear_sucursal(franquicia_id, event):
 def actualizar_sucursal(franquicia_id, event):
     """Actualiza el nombre de una sucursal existente."""
     body = obtener_body(event)
+    
+    logging.info(f"📌 Datos recibidos para actualización: {json.dumps(body)}")
 
-    if not all(k in body for k in ["sucursal_id", "nombre"]):
-        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Se requieren 'sucursal_id' y 'nombre'"})
+    # Asegurarse de que se use el nombre correcto
+    nuevo_nombre = body.get("nombre") or body.get("nuevo_nombre")
+    
+    if not all(k in body for k in ["sucursal_id"]) or not nuevo_nombre:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Se requieren 'sucursal_id' y 'nombre' (o 'nuevo_nombre')"})
 
-    return sucursal_service.actualizar_sucursal(franquicia_id, body["sucursal_id"], body["nombre"])
+    respuesta = sucursal_service.actualizar_sucursal(franquicia_id, body["sucursal_id"], nuevo_nombre)
+    
+    logging.info(f"✅ Respuesta de actualización: {respuesta}")
+    
+    return respuesta
 
 def eliminar_sucursal(franquicia_id, event):
     """Elimina una sucursal de una franquicia."""
