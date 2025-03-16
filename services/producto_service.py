@@ -93,18 +93,20 @@ class ProductoService:
         if not franquicia:
             return self._response(HTTPStatus.NOT_FOUND, "Franquicia no encontrada.")
 
-        productos = [
-            producto
-            for sucursal in franquicia.get("Sucursales", [])
-            for producto in sucursal.get("Productos", [])
-            if "Stock" in producto and isinstance(producto["Stock"], int)
-        ]
+        productos = []
+        for sucursal in franquicia.get("Sucursales", []):
+            for producto in sucursal.get("Productos", []):
+                try:
+                    stock = int(producto.get("Stock", 0))  # Convertir stock a entero para evitar errores
+                    if stock > 0:
+                        productos.append({**producto, "SucursalID": sucursal["SucursalID"]})
+                except (ValueError, TypeError):
+                    continue  # Evitar fallos si el stock no es convertible a int
 
         if not productos:
             return self._response(HTTPStatus.NOT_FOUND, "No se encontraron productos con stock en la franquicia.")
 
-        producto_mas_stock = max(productos, key=lambda p: p.get("Stock", 0))
-
+        producto_mas_stock = max(productos, key=lambda p: p["Stock"])
         return self._response(HTTPStatus.OK, "Producto con mayor stock encontrado.", producto_mas_stock)
 
     @staticmethod
