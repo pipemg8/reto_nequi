@@ -1,7 +1,6 @@
 import json
 from http import HTTPStatus
 from services.producto_service import ProductoService
-from repositories.producto_repositorio import ProductoRepositorio  # Asegura que el repositorio se importe correctamente
 
 # Se inicializa el servicio con su repositorio
 repositorio_producto = ProductoRepositorio()
