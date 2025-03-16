@@ -35,18 +35,27 @@ class SucursalService:
 
     def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> Dict[str, Any]:
         """Actualiza el nombre de una sucursal en una franquicia."""
+        if not all([franquicia_id, sucursal_id, nuevo_nombre]):
+            return self._response(400, "Todos los parámetros son requeridos.")
+
         franquicia = self.obtener_franquicia(franquicia_id)
         if not franquicia:
             return self._response(404, "Franquicia no encontrada.")
 
         sucursales = franquicia.get("Sucursales", [])
+        sucursal_encontrada = None
+
         for sucursal in sucursales:
             if sucursal["SucursalID"] == sucursal_id:
                 sucursal["Nombre"] = nuevo_nombre
-                self.actualizar_franquicia(franquicia_id, sucursales)
-                return self._response(200, "Sucursal actualizada.")
+                sucursal_encontrada = sucursal
+                break
 
-        return self._response(404, "Sucursal no encontrada.")
+        if not sucursal_encontrada:
+            return self._response(404, "Sucursal no encontrada.")
+
+        self.actualizar_franquicia(franquicia_id, sucursales)
+        return self._response(200, "Sucursal actualizada exitosamente.", sucursal_encontrada)
 
     def eliminar_sucursal(self, franquicia_id: str, sucursal_id: str) -> Dict[str, Any]:
         """Elimina una sucursal de una franquicia."""
@@ -85,5 +94,5 @@ class SucursalService:
         """Genera una respuesta estándar."""
         response_body = {"message": message}
         if data:
-            response_body["data"] = data
+            response_body["data"] = data}
         return {"statusCode": status_code, "body": json.dumps(response_body)}
