@@ -1,0 +1,158 @@
+---
+Metadata:
+  AWSToolsMetrics:
+    IaC_Generator: "arn:aws:cloudformation:us-east-1:920373020136:generatedTemplate/743dd5f5-003f-46af-bd18-8d36de5a990d"
+Resources:
+  ApiGatewayDeployment00kjf5jf00EmNZv:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00wfrru000FPV31:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00j9xcem0016B6S:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayRestApi00y2xotln9b800OQIaG:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::RestApi"
+    DeletionPolicy: "Retain"
+    Properties:
+      ApiKeySourceType: "HEADER"
+      Description: "franquicias "
+      EndpointConfiguration:
+        Types:
+        - "REGIONAL"
+      DisableExecuteApiEndpoint: false
+      Name: "franquicias "
+  ApiGatewayDeployment00baamdb00UIsWG:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment003afeck00TS3pq:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00k2zpeo00eIlCZ:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment001dghjf00nGjFT:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+      Description: "productivo"
+  ApiGatewayDeployment008ccujo0045pTa:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00lc4klm00wQBjA:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00lcbt2100nvaip:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment0033a27d00F50KQ:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00ttfr64003OMMR:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00jeghrj005aD3K:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00zzuiur00tAyvf:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00505k6v00gWPCy:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment0033707e008uBkJ:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment002jrar500LEk9i:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00owf94d00PrwXJ:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment002hkpz200U041i:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
+  ApiGatewayDeployment00ge9kdt00s70wA:
+    UpdateReplacePolicy: "Retain"
+    Type: "AWS::ApiGateway::Deployment"
+    DeletionPolicy: "Retain"
+    Properties:
+      RestApiId:
+        Ref: "ApiGatewayRestApi00y2xotln9b800OQIaG"
