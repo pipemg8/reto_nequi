@@ -52,13 +52,21 @@ def validar_y_ejecutar(func, params, required_params):
     if faltantes:
         return response_json(HTTPStatus.BAD_REQUEST, {"error": f"Faltan parámetros: {', '.join(faltantes)}"})
 
+    # Pasar todos los parámetros disponibles
+    argumentos = {k: params[k] for k in required_params}
+    if "nombre" in params:
+        argumentos["nombre"] = params["nombre"]
+    if "stock" in params:
+        argumentos["stock"] = params["stock"]
+
     try:
-        resultado = func(**{k: params[k] for k in required_params})
+        resultado = func(**argumentos)
         return response_json(HTTPStatus.OK, {"mensaje": "Operación exitosa", "resultado": resultado})
     except AttributeError as e:
         return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error de atributo en el servicio", "detalle": str(e)})
     except Exception as e:
         return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error interno en el servidor", "detalle": str(e)})
+
 
 def metodo_no_soportado():
     """Respuesta estándar para métodos HTTP no soportados."""
