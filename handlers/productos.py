@@ -25,9 +25,12 @@ def manejar_productos(event, context):
     """
     metodo = event.get("httpMethod", "").upper()
 
-    # En POST, los datos están en el body, en otros métodos suelen estar en queryStringParameters
-    if metodo == "POST":
-        params = json.loads(event.get("body", "{}"))  # Cargar JSON del body
+    # En POST, PUT y DELETE, los datos están en el body
+    if metodo in ["POST", "PUT", "DELETE"]:
+        try:
+            params = json.loads(event.get("body", "{}"))  # Cargar JSON del body
+        except json.JSONDecodeError:
+            return response_json(HTTPStatus.BAD_REQUEST, {"error": "El cuerpo de la solicitud no es un JSON válido"})
     else:
         params = event.get("queryStringParameters", {}) or {}
 
@@ -35,19 +38,21 @@ def manejar_productos(event, context):
         "GET": lambda: validar_y_ejecutar(producto_service.obtener_producto, params, ["franquicia_id", "sucursal_id", "producto_id"]),
         "POST": lambda: validar_y_ejecutar(producto_service.agregar_producto, params, ["franquicia_id", "sucursal_id", "nombre"]),
         "PUT": lambda: validar_y_ejecutar(producto_service.actualizar_producto, params, ["franquicia_id", "sucursal_id", "producto_id", "nombre"]),
-        "DELETE": lambda: validar_y_ejecutar(producto_service.eliminar_producto, params, ["franquicia_id", "sucursal_id", "producto_id"])
+        "DELETE": lambda: validar_y_ejecutar(producto_service.eliminar_producto, params, ["sucursal_id", "producto_id"])
     }
 
     return handlers.get(metodo, metodo_no_soportado)()
 
 def validar_y_ejecutar(func, params, required_params):
-    """Valida parámetros requeridos y ejecuta la función."""
+    """Valida parámetros requeridos y ejecuta la función con manejo de errores."""
     if not all(param in params and params[param] for param in required_params):
         return response_json(HTTPStatus.BAD_REQUEST, {"error": f"Faltan parámetros: {', '.join(required_params)}"})
 
-    resultado = func(*[params[param] for param in required_params])
-
-    return response_json(HTTPStatus.OK, resultado)
+    try:
+        resultado = func(*[params[param] for param in required_params])
+        return response_json(HTTPStatus.OK, resultado)
+    except Exception as e:
+        return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error interno en el servidor", "detalle": str(e)})
 
 def metodo_no_soportado():
     """Respuesta estándar para métodos HTTP no soportados."""
