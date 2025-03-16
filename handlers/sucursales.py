@@ -10,7 +10,6 @@ logging.basicConfig(level=logging.INFO)
 # Inicializar el repositorio
 franquicia_repo = DynamoRepository("Franquicias")
 
-
 def manejar_sucursales(event, context):
     """ Punto de entrada principal para manejar solicitudes HTTP """
     logging.info(f"📌 Evento recibido: {json.dumps(event)}")
@@ -41,7 +40,6 @@ def manejar_sucursales(event, context):
 
     return response_json(HTTPStatus.BAD_REQUEST, {"error": "Ruta o método no soportado"})
 
-
 def obtener_body(event):
     """ Obtiene el body del evento de forma segura """
     body = event.get("body", {})
@@ -52,7 +50,6 @@ def obtener_body(event):
         return json.loads(body) if body else {}
     except json.JSONDecodeError:
         return {}
-
 
 def crear_franquicia_con_sucursal(event):
     """ Crea una nueva franquicia con su primera sucursal """
@@ -78,7 +75,6 @@ def crear_franquicia_con_sucursal(event):
         "SucursalID": sucursal_id
     })
 
-
 def obtener_sucursales(franquicia_id):
     franquicia = franquicia_repo.get_item({"FranquiciaID": franquicia_id})
     if not franquicia:
@@ -87,13 +83,14 @@ def obtener_sucursales(franquicia_id):
     sucursales = franquicia.get("Sucursales", [])
     return response_json(HTTPStatus.OK, {"sucursales": sucursales})
 
-
 def crear_sucursal(franquicia_id, event):
     """ Crea una sucursal para una franquicia dada """
     body = obtener_body(event)
 
-    if "nombre" not in body:
-        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Falta el parámetro 'nombre'"})
+    if "nombre" not in body and "nombre_sucursal" not in body:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Falta el parámetro 'nombre' o 'nombre_sucursal'"})
+
+    nombre_sucursal = body.get("nombre", body.get("nombre_sucursal"))
 
     franquicia = franquicia_repo.get_item({"FranquiciaID": franquicia_id})
     if not franquicia:
@@ -101,7 +98,7 @@ def crear_sucursal(franquicia_id, event):
 
     sucursal_id = str(uuid.uuid4())
     sucursales = franquicia.get("Sucursales", [])
-    sucursales.append({"SucursalID": sucursal_id, "Nombre": body["nombre"]})
+    sucursales.append({"SucursalID": sucursal_id, "Nombre": nombre_sucursal})
 
     franquicia_repo.update_item(
         {"FranquiciaID": franquicia_id},
@@ -110,7 +107,6 @@ def crear_sucursal(franquicia_id, event):
     )
 
     return response_json(HTTPStatus.CREATED, {"message": "Sucursal creada", "SucursalID": sucursal_id})
-
 
 def actualizar_sucursal(franquicia_id, event):
     """ Actualiza el nombre de una sucursal existente """
@@ -139,7 +135,6 @@ def actualizar_sucursal(franquicia_id, event):
 
     return response_json(HTTPStatus.OK, {"message": "Sucursal actualizada"})
 
-
 def eliminar_sucursal(franquicia_id, event):
     """ Elimina una sucursal específica """
     body = obtener_body(event)
@@ -163,7 +158,6 @@ def eliminar_sucursal(franquicia_id, event):
     )
 
     return response_json(HTTPStatus.OK, {"message": "Sucursal eliminada"})
-
 
 def response_json(status_code, body):
     """ Formatea la respuesta en JSON """
