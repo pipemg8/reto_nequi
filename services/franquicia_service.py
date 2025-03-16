@@ -1,72 +1,87 @@
 import json
 import uuid
-from http import HTTPStatus
-from typing import Dict, Any, Optional
-from repositories.dynamo_repository import DynamoRepository
-from services.sucursal_service import SucursalService
+from typing import Optional, Dict, Any
+from repositories.dynamo_repository import DynamoRepository  # Uso correcto del repositorio
 
-class ProductoService:
-    """Servicio para gestionar productos en sucursales."""
-    
-    def __init__(self, repositorio: DynamoRepository):
-        self.repositorio = repositorio
-        self.sucursal_service = SucursalService()
+class FranquiciaService:
+    """Servicio para manejar operaciones CRUD de franquicias."""
 
-    def agregar_producto(self, franquicia_id: str, sucursal_id: str, nombre: str) -> Dict[str, Any]:
-        """
-        Agrega un producto a una sucursal específica de una franquicia.
-        """
-        if not all([franquicia_id, sucursal_id, nombre]):
-            return self._response(HTTPStatus.BAD_REQUEST, "Se requieren 'franquicia_id', 'sucursal_id' y 'nombre'.")
+    def __init__(self, repository=None):
+        """Inicializa el servicio con un repositorio externo, o usa DynamoDB por defecto."""
+        self.repository = repository or DynamoRepository("Franquicias")
 
-        franquicia = self.sucursal_service.obtener_franquicia(franquicia_id)
-        if not franquicia:
-            return self._response(HTTPStatus.NOT_FOUND, "Franquicia no encontrada.")
+    def franquicia_existe(self, franquicia_id: str) -> bool:
+        """Verifica si una franquicia con el ID dado existe en el repositorio."""
+        return self.repository.get_item({"FranquiciaID": franquicia_id}) is not None
 
-        sucursal = self.sucursal_service.obtener_sucursal(franquicia, sucursal_id)
-        if not sucursal:
-            return self._response(HTTPStatus.NOT_FOUND, "Sucursal no encontrada.")
+    def crear_franquicia(self, nombre: str) -> Dict[str, Any]:
+        """Crea una nueva franquicia."""
+        self._validar_nombre(nombre)
 
-        producto_id = str(uuid.uuid4())
-        sucursal.setdefault("Productos", []).append({
-            "ProductoID": producto_id,
-            "Nombre": nombre
-        })
+        nueva_franquicia = {
+            "FranquiciaID": str(uuid.uuid4()),
+            "Nombre": nombre,
+            "Sucursales": []
+        }
+        
+        try:
+            self.repository.put_item(nueva_franquicia)
+            return self._response(201, "Franquicia creada correctamente.", nueva_franquicia)
+        except Exception as e:
+            return self._response(500, f"Error al crear franquicia: {str(e)}")
+
+    def obtener_franquicia(self, franquicia_id: str) -> Optional[Dict[str, Any]]:
+        """Obtiene una franquicia por su ID."""
+        return self.repository.get_item({"FranquiciaID": franquicia_id})
+
+    def actualizar_franquicia(self, franquicia_id: str, nuevo_nombre: str) -> Dict[str, Any]:
+        """Actualiza el nombre de una franquicia."""
+        self._validar_nombre(nuevo_nombre)
+
+        if not self.franquicia_existe(franquicia_id):
+            return self._response(404, "Franquicia no encontrada.")
 
         try:
-            self.sucursal_service.actualizar_franquicia(franquicia_id, franquicia["Sucursales"])
-            return self._response(HTTPStatus.CREATED, "Producto agregado exitosamente.", {"ProductoID": producto_id})
+            self.repository.update_item(
+                {"FranquiciaID": franquicia_id},
+                "SET Nombre = :nombre",
+                {":nombre": nuevo_nombre}
+            )
+            return self._response(200, "Franquicia actualizada correctamente.")
         except Exception as e:
-            return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, f"Error al agregar producto: {str(e)}")
+            return self._response(500, f"Error al actualizar franquicia: {str(e)}")
 
-    def eliminar_producto(self, franquicia_id: str, sucursal_id: str, producto_id: str) -> Dict[str, Any]:
-        """
-        Elimina un producto de una sucursal específica.
-        """
-        if not all([franquicia_id, sucursal_id, producto_id]):
-            return self._response(HTTPStatus.BAD_REQUEST, "Se requieren 'franquicia_id', 'sucursal_id' y 'producto_id'.")
-
-        franquicia = self.sucursal_service.obtener_franquicia(franquicia_id)
-        if not franquicia:
-            return self._response(HTTPStatus.NOT_FOUND, "Franquicia no encontrada.")
-
-        sucursal = self.sucursal_service.obtener_sucursal(franquicia, sucursal_id)
-        if not sucursal:
-            return self._response(HTTPStatus.NOT_FOUND, "Sucursal no encontrada.")
-
-        productos = sucursal.get("Productos", [])
-        nuevo_productos = [p for p in productos if p["ProductoID"] != producto_id]
-
-        if len(nuevo_productos) == len(productos):
-            return self._response(HTTPStatus.NOT_FOUND, "Producto no encontrado.")
-
-        sucursal["Productos"] = nuevo_productos
+    def eliminar_franquicia(self, franquicia_id: str) -> Dict[str, Any]:
+        """Elimina una franquicia por su ID."""
+        if not self.franquicia_existe(franquicia_id):
+            return self._response(404, "Franquicia no encontrada.")
 
         try:
-            self.sucursal_service.actualizar_franquicia(franquicia_id, franquicia["Sucursales"])
-            return self._response(HTTPStatus.OK, "Producto eliminado exitosamente.")
+            self.repository.delete_item({"FranquiciaID": franquicia_id})
+            return self._response(200, "Franquicia eliminada correctamente.")
         except Exception as e:
-            return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, f"Error al eliminar producto: {str(e)}")
+            return self._response(500, f"Error al eliminar franquicia: {str(e)}")
+
+    def actualizar_sucursales(self, franquicia_id: str, sucursales: list) -> Dict[str, Any]:
+        """Actualiza la lista de sucursales de una franquicia."""
+        if not self.franquicia_existe(franquicia_id):
+            return self._response(404, "Franquicia no encontrada.")
+
+        try:
+            self.repository.update_item(
+                {"FranquiciaID": franquicia_id},
+                "SET Sucursales = :sucursales",
+                {":sucursales": sucursales}
+            )
+            return self._response(200, "Sucursales actualizadas correctamente.")
+        except Exception as e:
+            return self._response(500, f"Error al actualizar sucursales: {str(e)}")
+
+    @staticmethod
+    def _validar_nombre(nombre: str):
+        """Valida que el nombre no esté vacío."""
+        if not nombre or not nombre.strip():
+            raise ValueError("El parámetro 'nombre' es obligatorio.")
 
     @staticmethod
     def _response(status_code: int, message: str, data: Optional[Dict] = None) -> Dict[str, Any]:
