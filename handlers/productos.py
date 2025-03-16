@@ -24,7 +24,12 @@ def manejar_productos(event, context):
     - Dict con el código de estado y el cuerpo de la respuesta.
     """
     metodo = event.get("httpMethod", "").upper()
-    params = event.get("queryStringParameters", {}) or {}
+
+    # En POST, los datos están en el body, en otros métodos suelen estar en queryStringParameters
+    if metodo == "POST":
+        params = json.loads(event.get("body", "{}"))  # Cargar JSON del body
+    else:
+        params = event.get("queryStringParameters", {}) or {}
 
     handlers = {
         "GET": lambda: validar_y_ejecutar(producto_service.obtener_producto, params, ["franquicia_id", "sucursal_id", "producto_id"]),
