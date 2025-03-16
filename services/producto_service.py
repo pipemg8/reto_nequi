@@ -87,6 +87,21 @@ class ProductoService:
             return self._response(HTTPStatus.OK, "Producto eliminado exitosamente.")
         return self._response(HTTPStatus.INTERNAL_SERVER_ERROR, "Error al actualizar franquicia en DynamoDB.")
 
+    def mas_stock(self, franquicia_id: str) -> Dict[str, Any]:
+        """Obtiene el producto con mayor stock en cada sucursal de una franquicia."""
+        franquicia = self.repositorio.get_item({"FranquiciaID": franquicia_id})
+        if not franquicia:
+            return self._response(HTTPStatus.NOT_FOUND, "Franquicia no encontrada.")
+
+        productos_mayor_stock = {}
+        for sucursal in franquicia.get("Sucursales", []):
+            productos = sucursal.get("Productos", [])
+            if productos:
+                producto_max = max(productos, key=lambda p: p["Stock"])
+                productos_mayor_stock[sucursal["SucursalID"]] = producto_max
+
+        return self._response(HTTPStatus.OK, "Productos con mayor stock encontrados.", productos_mayor_stock)
+
     @staticmethod
     def _response(status_code: int, message: str, data: Optional[Dict] = None) -> Dict[str, Any]:
         """Genera una respuesta estándar en formato JSON."""

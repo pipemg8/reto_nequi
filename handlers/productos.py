@@ -27,6 +27,7 @@ def manejar_productos(event, context):
     - Dict con el código de estado y el cuerpo de la respuesta.
     """
     metodo = event.get("httpMethod", "").upper()
+    ruta = event.get("path", "")
 
     # En POST, PUT y DELETE, los datos están en el body
     if metodo in ["POST", "PUT", "DELETE"]:
@@ -36,6 +37,10 @@ def manejar_productos(event, context):
             return response_json(HTTPStatus.BAD_REQUEST, {"error": "El cuerpo de la solicitud no es un JSON válido"})
     else:
         params = event.get("queryStringParameters") or {}
+    
+    # Manejo de rutas específicas
+    if metodo == "GET" and ruta == "/productos/mas_stock":
+        return validar_y_ejecutar(producto_service.obtener_producto_mas_stock, params, ["franquicia_id"])
 
     handlers = {
         "GET": lambda: validar_y_ejecutar(producto_service.obtener_producto, params, ["franquicia_id", "sucursal_id", "producto_id"]),
@@ -66,7 +71,6 @@ def validar_y_ejecutar(func, params, required_params):
         return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error de atributo en el servicio", "detalle": str(e)})
     except Exception as e:
         return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error interno en el servidor", "detalle": str(e)})
-
 
 def metodo_no_soportado():
     """Respuesta estándar para métodos HTTP no soportados."""
