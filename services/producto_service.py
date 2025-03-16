@@ -4,6 +4,7 @@ from http import HTTPStatus
 from typing import Dict, Any, Optional
 from repositories.dynamo_repository import DynamoRepository
 from services.sucursal_service import SucursalService
+from decimal import Decimal
 
 class ProductoService:
     """Servicio para gestionar productos en sucursales."""
@@ -97,11 +98,11 @@ class ProductoService:
         for sucursal in franquicia.get("Sucursales", []):
             for producto in sucursal.get("Productos", []):
                 try:
-                    stock = int(producto.get("Stock", 0))  # Convertir stock a entero para evitar errores
+                    stock = int(Decimal(producto.get("Stock", 0)))  # Convertir Decimal a int
                     if stock > 0:
-                        productos.append({**producto, "SucursalID": sucursal["SucursalID"]})
+                        productos.append({**producto, "Stock": stock, "SucursalID": sucursal["SucursalID"]})
                 except (ValueError, TypeError):
-                    continue  # Evitar fallos si el stock no es convertible a int
+                    continue
 
         if not productos:
             return self._response(HTTPStatus.NOT_FOUND, "No se encontraron productos con stock en la franquicia.")
