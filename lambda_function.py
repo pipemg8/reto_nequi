@@ -35,7 +35,7 @@ def lambda_handler(event, context):
     elif ruta == "/productos":
         return manejar_productos(event, context)
     elif ruta == "/productos/mas_stock":  # ✅ Se mantiene la nueva ruta
-        return manejar_productos(event, context, es_mas_stock=True)
+        return manejar_productos(event, context)
     elif ruta == "/franquicias":
         respuesta = manejar_franquicias(event, context)
         print(f"Respuesta de manejar_franquicias: {respuesta}")  # Debug extra
