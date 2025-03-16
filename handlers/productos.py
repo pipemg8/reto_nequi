@@ -40,7 +40,7 @@ def manejar_productos(event, context):
     handlers = {
         "GET": lambda: validar_y_ejecutar(producto_service.obtener_producto, params, ["franquicia_id", "sucursal_id", "producto_id"]),
         "POST": lambda: validar_y_ejecutar(producto_service.agregar_producto, params, ["franquicia_id", "sucursal_id", "nombre"]),
-        "PUT": lambda: validar_y_ejecutar(producto_service.actualizar_producto, params, ["franquicia_id", "sucursal_id", "producto_id", "nombre"]),
+        "PUT": lambda: validar_y_ejecutar(producto_service.actualizar_producto, params, ["franquicia_id", "sucursal_id", "producto_id", "stock"]),
         "DELETE": lambda: validar_y_ejecutar(producto_service.eliminar_producto, params, ["franquicia_id", "sucursal_id", "producto_id"])
     }
 
