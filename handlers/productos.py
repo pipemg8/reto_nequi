@@ -37,11 +37,16 @@ def manejar_productos(event, context):
             return response_json(HTTPStatus.BAD_REQUEST, {"error": "El cuerpo de la solicitud no es un JSON válido"})
     else:
         params = event.get("queryStringParameters") or {}
-    
-    # Manejo de rutas específicas
-    if metodo == "GET" and ruta == "/productos/mas_stock":
-        return validar_y_ejecutar(producto_service.obtener_producto_mas_stock, params, ["franquicia_id"])
 
+    # 🔹 Manejo de ruta específica: "/productos/mas_stock"
+    if metodo == "GET" and ruta == "/productos/mas_stock":
+        return validar_y_ejecutar(
+            producto_service.obtener_producto_mas_stock, 
+            params, 
+            ["franquicia_id"]
+        )
+
+    # 🔹 Manejo de operaciones CRUD estándar
     handlers = {
         "GET": lambda: validar_y_ejecutar(producto_service.obtener_producto, params, ["franquicia_id", "sucursal_id", "producto_id"]),
         "POST": lambda: validar_y_ejecutar(producto_service.agregar_producto, params, ["franquicia_id", "sucursal_id", "nombre"]),
