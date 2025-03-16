@@ -44,8 +44,12 @@ def manejar_sucursales(event, context):
 
 def obtener_body(event):
     """ Obtiene el body del evento de forma segura """
+    body = event.get("body", {})
+
+    if isinstance(body, dict):  # Si ya es un dict, lo devolvemos directamente
+        return body
     try:
-        return json.loads(event.get("body", "{}")) if event.get("body") else {}
+        return json.loads(body) if body else {}
     except json.JSONDecodeError:
         return {}
 
