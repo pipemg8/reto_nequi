@@ -17,7 +17,6 @@ def lambda_handler(event, context):
     # Métodos permitidos
     metodos_permitidos = {"GET", "POST", "PUT", "DELETE"}
 
-    # 🚀 Nueva verificación: Si no se recibe un método válido
     if not metodo:
         print("❌ ERROR: No se recibió un método HTTP válido.")
         return {
@@ -25,7 +24,6 @@ def lambda_handler(event, context):
             "body": json.dumps({"error": "Método HTTP no especificado."}),
         }
 
-    # Validar método HTTP antes de procesar rutas
     if metodo not in metodos_permitidos:
         print(f"❌ ERROR: Método '{metodo}' no permitido.")
         return {
@@ -33,7 +31,6 @@ def lambda_handler(event, context):
             "body": json.dumps({"error": "Método no soportado."}),
         }
 
-    # ✅ Mantenimiento del manejo de rutas sin alteraciones
     if ruta == "/":
         return {
             "statusCode": 200,
@@ -43,19 +40,22 @@ def lambda_handler(event, context):
     elif ruta == "/sucursales":
         if metodo == "PUT":
             try:
-                # Validar si event["body"] es None antes de parsear
-                print(f"📌 Tipo de event['body']: {type(event.get('body'))}")
-                print(f"📥 Contenido bruto de event['body']: {event.get('body')}")
-                body = json.loads(event["body"]) if event.get("body") else {}
+                # 🔹 Asegurar que event["body"] siempre sea un diccionario JSON válido
+                raw_body = event.get("body", "{}")
+                print(f"📌 Tipo de event['body']: {type(raw_body)}")
+                print(f"📥 Contenido bruto de event['body']: {raw_body}")
 
-                # Depurar qué datos llegan realmente
-                print(f"📥 Cuerpo recibido después de parsear: {body}")
+                if isinstance(raw_body, str):
+                    body = json.loads(raw_body)
+                else:
+                    body = raw_body  # En caso de que ya sea un dict
+
+                print(f"📌 Cuerpo después de parseo: {body}")
 
                 franquicia_id = body.get("franquicia_id")
                 sucursal_id = body.get("sucursal_id")
                 nuevo_nombre = body.get("nuevo_nombre")
 
-                # Validar datos obligatorios
                 if not franquicia_id:
                     return {
                         "statusCode": 400,
@@ -75,7 +75,6 @@ def lambda_handler(event, context):
                         "body": json.dumps({"error": "Se requiere 'nuevo_nombre'"}),
                     }
 
-                # Si todo está correcto, llamar a manejar_sucursales
                 response = manejar_sucursales(event, context)
                 return response
 
@@ -99,7 +98,6 @@ def lambda_handler(event, context):
         print(f"✅ Respuesta de manejar_franquicias: {respuesta}")
         return respuesta
 
-    # ❌ Si la ruta no se encuentra
     print(f"❌ ERROR: Ruta '{ruta}' no encontrada.")
     return {
         "statusCode": 404,
