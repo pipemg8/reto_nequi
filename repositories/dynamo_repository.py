@@ -1,7 +1,3 @@
-"""
-Módulo que abstrae las operaciones en DynamoDB.
-"""
-
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
@@ -21,40 +17,65 @@ class DynamoRepository:
             print(f"❌ Error al obtener ítem de DynamoDB: {str(e)}")
             return None
 
-    def put_item(self, item: dict):
-        """Inserta o actualiza un ítem en la tabla."""
-        try:
-            self.table.put_item(Item=item)
-        except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al insertar ítem en DynamoDB: {str(e)}")
-
     def update_item(self, key: dict, update_expression: str, expression_values: dict):
         """Actualiza un ítem en la tabla."""
         try:
-            self.table.update_item(
+            response = self.table.update_item(
                 Key=key,
                 UpdateExpression=update_expression,
-                ExpressionAttributeValues=expression_values
+                ExpressionAttributeValues=expression_values,
+                ReturnValues="UPDATED_NEW"
             )
-        except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al actualizar ítem en DynamoDB: {str(e)}")
+            return response.get("Attributes", {})
+        except ClientError as e:
+            print(f"❌ Error en update_item: {e.response['Error']['Message']}")
+            return None
+        except BotoCoreError as e:
+            print(f"❌ Error en update_item (BotoCoreError): {str(e)}")
+            return None
 
-    def delete_item(self, key: dict):
-        """Elimina un ítem de la tabla por su clave primaria."""
+    def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> bool:
+        """
+        Actualiza el nombre de una sucursal específica dentro de una franquicia en DynamoDB.
+        """
         try:
-            self.table.delete_item(Key=key)
-        except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al eliminar ítem de DynamoDB: {str(e)}")
+            # 🔍 Obtener la franquicia
+            franquicia = self.get_item({"FranquiciaID": franquicia_id})
+            if not franquicia:
+                print(f"⚠️ Franquicia {franquicia_id} no encontrada.")
+                return False
 
-    def actualizar_franquicia(self, franquicia_id: str, sucursales: list) -> bool:
-        """Actualiza la lista de sucursales de una franquicia en DynamoDB."""
-        try:
-            self.update_item(
+            sucursales = franquicia.get("Sucursales", [])
+            sucursal_encontrada = False
+
+            # 🔄 Buscar la sucursal en la lista y actualizar su nombre
+            for sucursal in sucursales:
+                if sucursal["SucursalID"] == sucursal_id:
+                    sucursal["Nombre"] = nuevo_nombre
+                    sucursal_encontrada = True
+                    break
+
+            if not sucursal_encontrada:
+                print(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
+                return False
+
+            # 📝 Sobrescribir la lista de sucursales actualizada en DynamoDB
+            resultado = self.update_item(
                 key={"FranquiciaID": franquicia_id},
                 update_expression="SET Sucursales = :s",
                 expression_values={":s": sucursales}
             )
-            return True
-        except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al actualizar franquicia en DynamoDB: {str(e)}")
+
+            if resultado:
+                print(f"✅ Sucursal {sucursal_id} actualizada correctamente.")
+                return True
+            else:
+                print(f"⚠️ No se pudo actualizar la sucursal {sucursal_id}.")
+                return False
+
+        except ClientError as e:
+            print(f"❌ Error al actualizar sucursal: {e.response['Error']['Message']}")
+            return False
+        except BotoCoreError as e:
+            print(f"❌ Error al actualizar sucursal (BotoCoreError): {str(e)}")
             return False
