@@ -39,10 +39,10 @@ class DynamoRepository:
         """Inserta un nuevo ítem en la tabla."""
         try:
             self.table.put_item(Item=item)
-            logger.info(f"✅ Ítem insertado correctamente: {json.dumps(item, indent=2)}")
+            logger.info(f"\u2705 Ítem insertado correctamente: {json.dumps(item, indent=2)}")
             return True
         except (ClientError, BotoCoreError) as e:
-            logger.error(f"❌ Error al insertar ítem en DynamoDB: {str(e)}")
+            logger.error(f"\u274c Error al insertar ítem en DynamoDB: {str(e)}")
             return False
 
     def update_item(self, key: dict, update_expression: str, expression_values: dict):
@@ -61,43 +61,3 @@ class DynamoRepository:
         except BotoCoreError as e:
             logger.error(f"Error en update_item (BotoCoreError): {str(e)}")
             return None
-
-    def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> bool:
-        """Actualiza el nombre de una sucursal dentro de una franquicia en DynamoDB."""
-        try:
-            # Obtener la franquicia
-            franquicia = self.get_item({"FranquiciaID": franquicia_id})
-            if not franquicia:
-                logger.warning(f"⚠️ Franquicia {franquicia_id} no encontrada.")
-                return False
-
-            sucursales = franquicia.get("Sucursales", [])
-            index = next((i for i, s in enumerate(sucursales) if s["SucursalID"] == sucursal_id), -1)
-
-            if index == -1:
-                logger.warning(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
-                return False
-
-            # Actualizar el nombre de la sucursal en la posición específica
-            update_expression = f"SET Sucursales[{index}].Nombre = :nuevo_nombre"
-            expression_values = {":nuevo_nombre": nuevo_nombre}
-
-            resultado = self.update_item(
-                key={"FranquiciaID": franquicia_id},
-                update_expression=update_expression,
-                expression_values=expression_values
-            )
-
-            if resultado:
-                logger.info(f"✅ Sucursal {sucursal_id} actualizada correctamente a '{nuevo_nombre}'.")
-                return True
-            else:
-                logger.warning(f"⚠️ No se pudo actualizar la sucursal {sucursal_id}.")
-                return False
-
-        except ClientError as e:
-            logger.error(f"❌ Error al actualizar sucursal: {e.response['Error']['Message']}")
-            return False
-        except BotoCoreError as e:
-            logger.error(f"❌ Error al actualizar sucursal (BotoCoreError): {str(e)}")
-            return False
