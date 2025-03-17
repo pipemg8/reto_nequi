@@ -124,3 +124,26 @@ class DynamoRepository:
         except BotoCoreError as e:
             logger.error(f"❌ Error al actualizar sucursal (BotoCoreError): {str(e)}")
             return False
+
+# ✅ Función para manejar solicitudes de franquicias en Lambda
+def manejar_franquicias(event, context):
+    """Maneja las solicitudes de franquicias desde API Gateway."""
+    logger.info(f"📩 Evento recibido: {json.dumps(event)}")
+
+    repo = DynamoRepository(table_name="Franquicias")
+
+    http_method = event.get("httpMethod")
+    query_params = event.get("queryStringParameters", {})
+
+    if http_method == "GET":
+        franquicia_id = query_params.get("franquicia_id")
+        if not franquicia_id:
+            return {"statusCode": 400, "body": json.dumps({"error": "Falta el parámetro franquicia_id"})}
+        
+        franquicia = repo.get_item({"FranquiciaID": franquicia_id})
+        if franquicia:
+            return {"statusCode": 200, "body": json.dumps(franquicia)}
+        else:
+            return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
+
+    return {"statusCode": 405, "body": json.dumps({"error": "Método no permitido"})}
