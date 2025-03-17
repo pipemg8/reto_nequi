@@ -2,6 +2,7 @@ import json
 import uuid
 import logging
 from http import HTTPStatus
+from typing import Dict, Any
 from services.sucursal_service import SucursalService
 from repositories.dynamo_repository import DynamoRepository
 
@@ -44,16 +45,16 @@ def obtener_body(event):
     except json.JSONDecodeError:
         return {}
 
-def crear_franquicia(self, nombre: str) -> Dict[str, Any]:
-    self._validar_nombre(nombre)
+def crear_franquicia(nombre: str) -> Dict[str, Any]:
+    """Crea una nueva franquicia."""
     nueva_franquicia = {
         "FranquiciaID": str(uuid.uuid4()),
         "Nombre": nombre,
         "Sucursales": []
     }
-    if self.repository.put_item(nueva_franquicia):
-        return self._response(201, "Franquicia creada correctamente.", nueva_franquicia)
-    return self._response(500, "Error al crear la franquicia.")
+    if franquicia_repo.put_item(nueva_franquicia):
+        return response_json(HTTPStatus.CREATED, {"message": "Franquicia creada correctamente.", "data": nueva_franquicia})
+    return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error al crear la franquicia."})
 
 def obtener_sucursales(franquicia_id):
     """Obtiene las sucursales de una franquicia."""
@@ -69,40 +70,58 @@ def crear_sucursal(franquicia_id, event):
 
     return sucursal_service.agregar_sucursal(franquicia_id, nombre_sucursal)
 
-def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> Dict[str, Any]:
-    franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
-    if not franquicia:
-        return self._response(404, "Franquicia no encontrada.")
+def actualizar_sucursal(franquicia_id, event):
+    """Actualiza una sucursal existente."""
+    body = obtener_body(event)
+    sucursal_id = body.get("sucursal_id")
+    nuevo_nombre = body.get("nombre")
 
-    sucursales = franquicia.get("Sucursales", [])
-    for sucursal in sucursales:
-        if sucursal["SucursalID"] == sucursal_id:
-            sucursal["Nombre"] = nuevo_nombre
-            break
-    else:
-        return self._response(404, "Sucursal no encontrada.")
+    if not sucursal_id or not nuevo_nombre:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Faltan parámetros 'sucursal_id' o 'nombre'"})
 
-    try:
-        resultado = self.repository.update_item(
-            {"FranquiciaID": franquicia_id},
-            "SET Sucursales = :sucursales",
-            {":sucursales": sucursales}
-        )
-        if resultado:
-            return self._response(200, "Sucursal actualizada correctamente.")
-        return self._response(500, "No se pudo actualizar la sucursal.")
-    except Exception as e:
-        return self._response(500, f"Error inesperado: {str(e)}")
-
+    return sucursal_service.actualizar_sucursal(franquicia_id, sucursal_id, nuevo_nombre)
 
 def eliminar_sucursal(franquicia_id, event):
     """Elimina una sucursal de una franquicia."""
     body = obtener_body(event)
+    sucursal_id = body.get("sucursal_id")
 
-    if "sucursal_id" not in body:
+    if not sucursal_id:
         return response_json(HTTPStatus.BAD_REQUEST, {"error": "Falta el parámetro 'sucursal_id'"})
 
-    return sucursal_service.eliminar_sucursal(franquicia_id, body["sucursal_id"])
+    return sucursal_service.eliminar_sucursal(franquicia_id, sucursal_id)
+
+def crear_franquicia_con_sucursal(event):
+    """Crea una nueva franquicia con una sucursal."""
+    body = obtener_body(event)
+    nombre_franquicia = body.get("nombre_franquicia")
+    datos_sucursal = body.get("sucursal")
+
+    if not nombre_franquicia or not datos_sucursal:
+        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Se requieren 'nombre_franquicia' y 'sucursal'"})
+
+    franquicia_id = str(uuid.uuid4())
+    sucursal_id = str(uuid.uuid4())
+
+    franquicia = {
+        "franquicia_id": franquicia_id,
+        "nombre_franquicia": nombre_franquicia,
+        "sucursales": [sucursal_id]
+    }
+
+    sucursal = {
+        "sucursal_id": sucursal_id,
+        "franquicia_id": franquicia_id,
+        **datos_sucursal
+    }
+
+    try:
+        sucursal_service.crear_franquicia(franquicia)
+        sucursal_service.crear_sucursal(sucursal)
+        return response_json(HTTPStatus.CREATED, {"franquicia_id": franquicia_id, "sucursal_id": sucursal_id})
+    except Exception as e:
+        logging.error(f"Error al crear franquicia y sucursal: {e}")
+        return response_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Error al crear franquicia y sucursal"})
 
 def response_json(status_code, body):
     """Genera una respuesta HTTP estándar."""
