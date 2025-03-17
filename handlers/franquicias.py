@@ -1,104 +1,126 @@
+import boto3
+import logging
 import json
-from services.franquicia_service import FranquiciaService
+from decimal import Decimal
+from botocore.exceptions import BotoCoreError, ClientError
 
-def manejar_franquicias(event, context, service=None):
-    """Manejador principal para la entidad franquicias."""
-    
-    service = service or FranquiciaService()
-    http_method = event.get("httpMethod", "").upper()
+# Configuración de logs
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-    print(f"📌 Método recibido: {http_method}, Event: {json.dumps(event)}")
+def convert_decimal(obj):
+    """Convierte objetos Decimal de DynamoDB a tipos serializables."""
+    if isinstance(obj, list):
+        return [convert_decimal(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: convert_decimal(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return int(obj) if obj % 1 == 0 else float(obj)
+    return obj
 
-    if http_method == "POST":
-        return manejar_creacion_franquicia(event, service)
-    elif http_method == "GET":
-        return manejar_obtener_franquicia(event, service)
-    elif http_method == "PUT":
-        return manejar_actualizar_franquicia(event, service)
-    elif http_method == "DELETE":
-        return manejar_eliminar_franquicia(event, service)
+class DynamoRepository:
+    """Clase para interactuar con DynamoDB."""
 
-    return respuesta(400, {"error": "Método no soportado."})
+    def __init__(self, table_name: str):
+        self.dynamodb = boto3.resource("dynamodb")
+        self.table = self.dynamodb.Table(table_name)
 
-def manejar_creacion_franquicia(event, service):
-    """Maneja la creación de una franquicia desde el body del request."""
-    try:
-        body = json.loads(event.get("body", "{}"))
-        nombre = body.get("nombre")
+    def get_item(self, key: dict):
+        """Obtiene un ítem de la tabla por su clave primaria."""
+        try:
+            response = self.table.get_item(Key=key)
+            item = response.get("Item")
+            return convert_decimal(item) if item else None
+        except (ClientError, BotoCoreError) as e:
+            logger.error(f"Error al obtener ítem de DynamoDB: {str(e)}")
+            return None
 
-        if not nombre:
-            return respuesta(400, {"error": "El parámetro 'nombre' es obligatorio."})
+    def put_item(self, item: dict):
+        """Inserta un nuevo ítem en la tabla."""
+        try:
+            self.table.put_item(Item=item)
+            logger.info(f"✅ Ítem insertado correctamente: {json.dumps(item, indent=2)}")
+            return True
+        except (ClientError, BotoCoreError) as e:
+            logger.error(f"❌ Error al insertar ítem en DynamoDB: {str(e)}")
+            return False
 
-        resultado = service.crear_franquicia(nombre)
-        return respuesta(201, resultado)
+    def update_item(self, key: dict, update_expression: str, expression_values: dict):
+        """Actualiza un ítem en la tabla."""
+        try:
+            response = self.table.update_item(
+                Key=key,
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values,
+                ReturnValues="UPDATED_NEW"
+            )
+            return convert_decimal(response.get("Attributes", {}))
+        except ClientError as e:
+            logger.error(f"Error en update_item: {e.response['Error']['Message']}")
+            return None
+        except BotoCoreError as e:
+            logger.error(f"Error en update_item (BotoCoreError): {str(e)}")
+            return None
 
-    except Exception as e:
-        print(f"❌ Error en manejar_creacion_franquicia: {str(e)}")
-        return respuesta(500, {"error": f"Error interno: {str(e)}"})
+    def actualizar_franquicia(self, franquicia_id: str, nuevo_nombre: str) -> bool:
+        """Actualiza el nombre de una franquicia en DynamoDB."""
+        try:
+            resultado = self.update_item(
+                key={"FranquiciaID": franquicia_id},
+                update_expression="SET Nombre = :nuevo_nombre",
+                expression_values={":nuevo_nombre": nuevo_nombre}
+            )
 
-def manejar_obtener_franquicia(event, service):
-    """Maneja la obtención de una franquicia."""
-    try:
-        path_params = event.get("pathParameters") or {}
-        query_params = event.get("queryStringParameters") or {}
+            if resultado:
+                logger.info(f"✅ Franquicia {franquicia_id} actualizada correctamente a '{nuevo_nombre}'.")
+                return True
+            else:
+                logger.warning(f"⚠️ No se pudo actualizar la franquicia {franquicia_id}.")
+                return False
 
-        franquicia_id = path_params.get("franquicia_id") or query_params.get("franquicia_id")
+        except ClientError as e:
+            logger.error(f"❌ Error al actualizar franquicia: {e.response['Error']['Message']}")
+            return False
+        except BotoCoreError as e:
+            logger.error(f"❌ Error al actualizar franquicia (BotoCoreError): {str(e)}")
+            return False
 
-        if not franquicia_id:
-            return respuesta(400, {"error": "Se requiere 'franquicia_id'."})
+    def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> bool:
+        """Actualiza el nombre de una sucursal dentro de una franquicia en DynamoDB."""
+        try:
+            # Obtener la franquicia
+            franquicia = self.get_item({"FranquiciaID": franquicia_id})
+            if not franquicia:
+                logger.warning(f"⚠️ Franquicia {franquicia_id} no encontrada.")
+                return False
 
-        franquicia = service.obtener_franquicia(franquicia_id)
+            sucursales = franquicia.get("Sucursales", [])
+            index = next((i for i, s in enumerate(sucursales) if s["SucursalID"] == sucursal_id), -1)
 
-        if not franquicia:
-            return respuesta(404, {"error": "Franquicia no encontrada."})
+            if index == -1:
+                logger.warning(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
+                return False
 
-        return respuesta(200, franquicia)
+            # Actualizar el nombre de la sucursal en la posición específica
+            update_expression = f"SET Sucursales[{index}].Nombre = :nuevo_nombre"
+            expression_values = {":nuevo_nombre": nuevo_nombre}
 
-    except Exception as e:
-        print(f"❌ Error en manejar_obtener_franquicia: {str(e)}")
-        return respuesta(500, {"error": f"Error interno: {str(e)}"})
+            resultado = self.update_item(
+                key={"FranquiciaID": franquicia_id},
+                update_expression=update_expression,
+                expression_values=expression_values
+            )
 
-def manejar_actualizar_franquicia(event, service):
-    """Maneja la actualización de una franquicia usando path parameters."""
-    try:
-        path_params = event.get("pathParameters") or {}  
-        print(f"🔍 Path Parameters recibidos: {path_params}")  
-        franquicia_id = path_params.get("franquicia_id")
+            if resultado:
+                logger.info(f"✅ Sucursal {sucursal_id} actualizada correctamente a '{nuevo_nombre}'.")
+                return True
+            else:
+                logger.warning(f"⚠️ No se pudo actualizar la sucursal {sucursal_id}.")
+                return False
 
-        body = json.loads(event.get("body", "{}"))
-        nuevo_nombre = body.get("nombre")
-
-        if not franquicia_id or not nuevo_nombre:
-            return respuesta(400, {"error": "Se requieren 'franquicia_id' y 'nombre'."})
-
-        resultado = service.actualizar_franquicia(franquicia_id, nuevo_nombre)
-        return respuesta(200, resultado)
-
-    except Exception as e:
-        print(f"❌ Error en manejar_actualizar_franquicia: {str(e)}")
-        return respuesta(500, {"error": f"Error interno: {str(e)}"})
-
-def manejar_eliminar_franquicia(event, service):
-    """Maneja la eliminación de una franquicia usando path parameters."""
-    try:
-        path_params = event.get("pathParameters") or {}  
-        print(f"🔍 Path Parameters recibidos: {path_params}")  
-        franquicia_id = path_params.get("franquicia_id")
-
-        if not franquicia_id:
-            return respuesta(400, {"error": "Se requiere 'franquicia_id'."})
-
-        resultado = service.eliminar_franquicia(franquicia_id)
-        return respuesta(200, resultado)
-
-    except Exception as e:
-        print(f"❌ Error en manejar_eliminar_franquicia: {str(e)}")
-        return respuesta(500, {"error": f"Error interno: {str(e)}"})
-
-def respuesta(status_code, data):
-    """Genera una respuesta HTTP estándar."""
-    return {
-        "statusCode": status_code,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(data)
-    }
+        except ClientError as e:
+            logger.error(f"❌ Error al actualizar sucursal: {e.response['Error']['Message']}")
+            return False
+        except BotoCoreError as e:
+            logger.error(f"❌ Error al actualizar sucursal (BotoCoreError): {str(e)}")
+            return False
