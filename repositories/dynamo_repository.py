@@ -35,6 +35,16 @@ class DynamoRepository:
             logger.error(f"Error al obtener ítem de DynamoDB: {str(e)}")
             return None
 
+    def put_item(self, item: dict):
+        """Inserta un nuevo ítem en la tabla."""
+        try:
+            self.table.put_item(Item=item)
+            logger.info(f"✅ Ítem insertado correctamente: {json.dumps(item, indent=2)}")
+            return True
+        except (ClientError, BotoCoreError) as e:
+            logger.error(f"❌ Error al insertar ítem en DynamoDB: {str(e)}")
+            return False
+
     def update_item(self, key: dict, update_expression: str, expression_values: dict):
         """Actualiza un ítem en la tabla."""
         try:
