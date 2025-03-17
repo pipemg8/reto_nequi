@@ -38,21 +38,19 @@ def lambda_handler(event, context):
             "body": json.dumps({"message": "API funcionando correctamente"}),
         }
 
-    # ✅ Manejo de sucursales
+    # Manejo de sucursales
     elif ruta == "/sucursales":
         if metodo == "PUT":
             try:
+                print(f"Ejecutando manejar_sucursales... {manejar_sucursales}")  # Verificar importación
+                
                 raw_body = event.get("body", "{}")
-                if isinstance(raw_body, str):
-                    body = json.loads(raw_body)  # Convertir JSON string a diccionario
-                else:
-                    body = raw_body
+                body = json.loads(raw_body) if isinstance(raw_body, str) else raw_body
 
                 franquicia_id = body.get("franquicia_id")
                 sucursal_id = body.get("sucursal_id")
                 nuevo_nombre = body.get("nuevo_nombre")
 
-                # Validaciones de parámetros requeridos
                 errores = {}
                 if not franquicia_id:
                     errores["franquicia_id"] = "Se requiere 'franquicia_id'"
@@ -60,23 +58,36 @@ def lambda_handler(event, context):
                     errores["sucursal_id"] = "Se requiere 'sucursal_id'"
                 if not nuevo_nombre:
                     errores["nuevo_nombre"] = "Se requiere 'nuevo_nombre'"
-                
+
                 if errores:
+                    print(f"Errores detectados: {errores}")
                     return {
                         "statusCode": 400,
                         "headers": {"Content-Type": "application/json"},
                         "body": json.dumps({"error": errores}),
                     }
-                
-                # Llamar la función manejar_sucursales y retornar su resultado
-                return manejar_sucursales(event, context)
-            
+
+                # Llamada a manejar_sucursales con try-except para capturar errores
+                try:
+                    respuesta = manejar_sucursales(event, context)
+                    print(f"Respuesta de manejar_sucursales: {respuesta}")
+                    return respuesta
+                except Exception as e:
+                    print(f"ERROR al ejecutar manejar_sucursales: {str(e)}")
+                    return {
+                        "statusCode": 500,
+                        "headers": {"Content-Type": "application/json"},
+                        "body": json.dumps({"error": "Error interno en manejar_sucursales."}),
+                    }
+                    
             except json.JSONDecodeError:
                 return {
                     "statusCode": 400,
                     "headers": {"Content-Type": "application/json"},
                     "body": json.dumps({"error": "Formato JSON inválido."}),
                 }
+
+        return manejar_sucursales(event, context)
         
         # Si es otro método, seguir con el flujo normal
         return manejar_sucursales(event, context)
