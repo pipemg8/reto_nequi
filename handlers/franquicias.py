@@ -86,43 +86,41 @@ class DynamoRepository:
             logger.error(f"❌ Error al actualizar franquicia (BotoCoreError): {str(e)}")
             return False
 
-    def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> bool:
-        """Actualiza el nombre de una sucursal dentro de una franquicia en DynamoDB."""
-        try:
-            franquicia = self.get_item({"FranquiciaID": franquicia_id})
-            if not franquicia:
-                logger.warning(f"⚠️ Franquicia {franquicia_id} no encontrada.")
-                return False
-
-            sucursales = franquicia.get("Sucursales", [])
-            index = next((i for i, s in enumerate(sucursales) if s["SucursalID"] == sucursal_id), -1)
-
-            if index == -1:
-                logger.warning(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
-                return False
-
-            update_expression = f"SET Sucursales[{index}].Nombre = :nuevo_nombre"
-            expression_values = {":nuevo_nombre": nuevo_nombre}
-
-            resultado = self.update_item(
-                key={"FranquiciaID": franquicia_id},
-                update_expression=update_expression,
-                expression_values=expression_values
-            )
-
-            if resultado:
-                logger.info(f"✅ Sucursal {sucursal_id} actualizada correctamente a '{nuevo_nombre}'.")
-                return True
-            else:
-                logger.warning(f"⚠️ No se pudo actualizar la sucursal {sucursal_id}.")
-                return False
-
-        except ClientError as e:
-            logger.error(f"❌ Error al actualizar sucursal: {e.response['Error']['Message']}")
+def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> bool:
+    """Actualiza el nombre de una sucursal dentro de una franquicia en DynamoDB."""
+    try:
+        franquicia = self.get_item({"FranquiciaID": franquicia_id})
+        if not franquicia:
+            logger.warning(f"⚠️ Franquicia {franquicia_id} no encontrada.")
             return False
-        except BotoCoreError as e:
-            logger.error(f"❌ Error al actualizar sucursal (BotoCoreError): {str(e)}")
+
+        sucursales = franquicia.get("Sucursales", [])
+        index = next((i for i, s in enumerate(sucursales) if s["SucursalID"] == sucursal_id), -1)
+
+        if index == -1:
+            logger.warning(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
             return False
+
+        # Actualizar el nombre en la lista de sucursales
+        sucursales[index]["Nombre"] = nuevo_nombre
+
+        # Reescribir toda la lista en DynamoDB
+        resultado = self.update_item(
+            key={"FranquiciaID": franquicia_id},
+            update_expression="SET Sucursales = :sucursales",
+            expression_values={":sucursales": sucursales}
+        )
+
+        if resultado:
+            logger.info(f"✅ Sucursal {sucursal_id} actualizada correctamente a '{nuevo_nombre}'.")
+            return True
+        else:
+            logger.warning(f"⚠️ No se pudo actualizar la sucursal {sucursal_id}.")
+            return False
+    except Exception as e:
+        logger.error(f"❌ Error en actualizar_sucursal: {str(e)}")
+        return False
+
 
 # ✅ Función para manejar solicitudes de franquicias en Lambda
 def manejar_franquicias(event, context):
