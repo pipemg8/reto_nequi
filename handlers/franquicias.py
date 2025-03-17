@@ -62,7 +62,6 @@ class DynamoRepository:
         except BotoCoreError as e:
             logger.error(f"Error en update_item (BotoCoreError): {str(e)}")
             return None
-        
 
     def actualizar_franquicia(self, franquicia_id: str, nuevo_nombre: str) -> bool:
         """Actualiza el nombre de una franquicia en DynamoDB."""

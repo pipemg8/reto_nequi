@@ -55,6 +55,20 @@ class DynamoRepository:
             logger.error(f"❌ Error al eliminar ítem de DynamoDB: {str(e)}")
             return False
         
+    def actualizar_franquicia(self, franquicia_id: str, sucursales: list) -> bool:
+        """Actualiza la lista de sucursales de una franquicia en la base de datos."""
+        try:
+            response = self.table.update_item(
+            Key={"FranquiciaID": franquicia_id},
+            UpdateExpression="SET Sucursales = :s",
+            ExpressionAttributeValues={":s": sucursales},
+            ReturnValues="UPDATED_NEW"
+        )
+            return "Attributes" in response
+        except (ClientError, BotoCoreError) as e:
+            logger.error(f"Error al actualizar franquicia en DynamoDB: {str(e)}")
+        return False
+
     def update_item(self, key: dict, update_expression: str, expression_values: dict):
         """Actualiza un ítem en la tabla."""
         try:
