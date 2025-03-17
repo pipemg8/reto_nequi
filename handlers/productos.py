@@ -56,6 +56,34 @@ def manejar_productos(event, context):
 
     return handlers.get(metodo, metodo_no_soportado)()
 
+def actualizar_producto(self, franquicia_id: str, sucursal_id: str, producto_id: str, nuevo_nombre: str) -> bool:
+    """Actualiza el nombre de un producto dentro de una sucursal en DynamoDB."""
+    franquicia = self.get_item({"FranquiciaID": franquicia_id})
+    if not franquicia:
+        return False
+
+    sucursales = franquicia.get("Sucursales", [])
+    sucursal = next((s for s in sucursales if s["SucursalID"] == sucursal_id), None)
+
+    if not sucursal:
+        return False
+
+    productos = sucursal.get("Productos", [])
+    index = next((i for i, p in enumerate(productos) if p["ProductoID"] == producto_id), -1)
+
+    if index == -1:
+        return False
+
+    update_expression = f"SET Sucursales[{sucursales.index(sucursal)}].Productos[{index}].Nombre = :nuevo_nombre"
+    expression_values = {":nuevo_nombre": nuevo_nombre}
+
+    resultado = self.update_item(
+        key={"FranquiciaID": franquicia_id},
+        update_expression=update_expression,
+        expression_values=expression_values
+    )
+    return resultado is not None
+
 def validar_y_ejecutar(func, params, required_params):
     """Valida parámetros requeridos y ejecuta la función con manejo de errores."""
     faltantes = [param for param in required_params if param not in params or not params[param]]
