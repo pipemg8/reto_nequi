@@ -1,6 +1,7 @@
 import boto3
 import logging
 import json
+import uuid
 from decimal import Decimal
 from botocore.exceptions import BotoCoreError, ClientError
 
@@ -32,7 +33,7 @@ class DynamoRepository:
             item = response.get("Item")
             return convert_decimal(item) if item else None
         except (ClientError, BotoCoreError) as e:
-            logger.error(f"Error al obtener ítem de DynamoDB: {str(e)}")
+            logger.error(f"❌ Error al obtener ítem de DynamoDB: {str(e)}")
             return None
 
     def put_item(self, item: dict):
@@ -61,6 +62,7 @@ class DynamoRepository:
         except BotoCoreError as e:
             logger.error(f"Error en update_item (BotoCoreError): {str(e)}")
             return None
+        
 
     def actualizar_franquicia(self, franquicia_id: str, nuevo_nombre: str) -> bool:
         """Actualiza el nombre de una franquicia en DynamoDB."""
@@ -88,7 +90,6 @@ class DynamoRepository:
     def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> bool:
         """Actualiza el nombre de una sucursal dentro de una franquicia en DynamoDB."""
         try:
-            # Obtener la franquicia
             franquicia = self.get_item({"FranquiciaID": franquicia_id})
             if not franquicia:
                 logger.warning(f"⚠️ Franquicia {franquicia_id} no encontrada.")
@@ -101,7 +102,6 @@ class DynamoRepository:
                 logger.warning(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
                 return False
 
-            # Actualizar el nombre de la sucursal en la posición específica
             update_expression = f"SET Sucursales[{index}].Nombre = :nuevo_nombre"
             expression_values = {":nuevo_nombre": nuevo_nombre}
 
@@ -131,19 +131,71 @@ def manejar_franquicias(event, context):
     logger.info(f"📩 Evento recibido: {json.dumps(event)}")
 
     repo = DynamoRepository(table_name="Franquicias")
-
     http_method = event.get("httpMethod")
-    query_params = event.get("queryStringParameters", {})
 
     if http_method == "GET":
-        franquicia_id = query_params.get("franquicia_id")
-        if not franquicia_id:
-            return {"statusCode": 400, "body": json.dumps({"error": "Falta el parámetro franquicia_id"})}
-        
-        franquicia = repo.get_item({"FranquiciaID": franquicia_id})
-        if franquicia:
-            return {"statusCode": 200, "body": json.dumps(franquicia)}
-        else:
-            return {"statusCode": 404, "body": json.dumps({"error": "Franquicia no encontrada"})}
+        return manejar_get(event, repo)
 
-    return {"statusCode": 405, "body": json.dumps({"error": "Método no permitido"})}
+    if http_method == "POST":
+        return manejar_post(event, repo)
+
+    if http_method == "PUT":
+        return manejar_put(event, repo)
+
+    return response_json(405, {"error": "Método no permitido"})
+
+def manejar_get(event, repo):
+    """Manejo del método GET para obtener una franquicia por ID."""
+    query_params = event.get("queryStringParameters", {})
+    franquicia_id = query_params.get("franquicia_id")
+
+    if not franquicia_id:
+        return response_json(400, {"error": "Falta el parámetro franquicia_id"})
+
+    franquicia = repo.get_item({"FranquiciaID": franquicia_id})
+    return response_json(200, franquicia) if franquicia else response_json(404, {"error": "Franquicia no encontrada"})
+
+def manejar_post(event, repo):
+    """Manejo del método POST para crear una nueva franquicia."""
+    try:
+        body = json.loads(event.get("body", "{}"))
+        nombre = body.get("nombre")
+
+        if not nombre:
+            return response_json(400, {"error": "El campo 'nombre' es obligatorio."})
+
+        nueva_franquicia = {
+            "FranquiciaID": str(uuid.uuid4()),
+            "Nombre": nombre,
+            "Sucursales": []
+        }
+
+        return response_json(201, nueva_franquicia) if repo.put_item(nueva_franquicia) else response_json(500, {"error": "Error al crear la franquicia."})
+
+    except json.JSONDecodeError:
+        return response_json(400, {"error": "Formato JSON inválido en el cuerpo de la solicitud."})
+    
+def manejar_put(event, repo):
+    """Manejo del método PUT para actualizar una franquicia existente."""
+    try:
+        body = json.loads(event.get("body", "{}"))
+        franquicia_id = body.get("franquicia_id")
+        nuevo_nombre = body.get("nombre")
+
+        if not franquicia_id or not nuevo_nombre:
+            return response_json(400, {"error": "Se requieren 'franquicia_id' y 'nombre'."})
+
+        actualizado = repo.actualizar_franquicia(franquicia_id, nuevo_nombre)
+
+        return response_json(200, {"message": "Franquicia actualizada correctamente."}) if actualizado else response_json(404, {"error": "Franquicia no encontrada."})
+
+    except json.JSONDecodeError:
+        return response_json(400, {"error": "Formato JSON inválido en el cuerpo de la solicitud."})
+    
+def response_json(status_code, body):
+    """Genera una respuesta HTTP con código de estado y cuerpo JSON."""
+    return {
+        "statusCode": status_code,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(body)
+    }
