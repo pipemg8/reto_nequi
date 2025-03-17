@@ -44,14 +44,16 @@ def obtener_body(event):
     except json.JSONDecodeError:
         return {}
 
-def crear_franquicia_con_sucursal(event):
-    """Crea una nueva franquicia con su primera sucursal."""
-    body = obtener_body(event)
-
-    if not all(k in body for k in ["nombre_franquicia", "nombre_sucursal"]):
-        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Se requieren 'nombre_franquicia' y 'nombre_sucursal'"})
-
-    return sucursal_service.crear_franquicia_con_sucursal(body["nombre_franquicia"], body["nombre_sucursal"])
+def crear_franquicia(self, nombre: str) -> Dict[str, Any]:
+    self._validar_nombre(nombre)
+    nueva_franquicia = {
+        "FranquiciaID": str(uuid.uuid4()),
+        "Nombre": nombre,
+        "Sucursales": []
+    }
+    if self.repository.put_item(nueva_franquicia):
+        return self._response(201, "Franquicia creada correctamente.", nueva_franquicia)
+    return self._response(500, "Error al crear la franquicia.")
 
 def obtener_sucursales(franquicia_id):
     """Obtiene las sucursales de una franquicia."""
@@ -67,23 +69,31 @@ def crear_sucursal(franquicia_id, event):
 
     return sucursal_service.agregar_sucursal(franquicia_id, nombre_sucursal)
 
-def actualizar_sucursal(franquicia_id, event):
-    """Actualiza el nombre de una sucursal existente."""
-    body = obtener_body(event)
-    
-    logging.info(f"📌 Datos recibidos para actualización: {json.dumps(body)}")
+def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> Dict[str, Any]:
+    franquicia = self.repository.get_item({"FranquiciaID": franquicia_id})
+    if not franquicia:
+        return self._response(404, "Franquicia no encontrada.")
 
-    # Asegurarse de que se use el nombre correcto
-    nuevo_nombre = body.get("nombre") or body.get("nuevo_nombre")
-    
-    if not all(k in body for k in ["sucursal_id"]) or not nuevo_nombre:
-        return response_json(HTTPStatus.BAD_REQUEST, {"error": "Se requieren 'sucursal_id' y 'nombre' (o 'nuevo_nombre')"})
+    sucursales = franquicia.get("Sucursales", [])
+    for sucursal in sucursales:
+        if sucursal["SucursalID"] == sucursal_id:
+            sucursal["Nombre"] = nuevo_nombre
+            break
+    else:
+        return self._response(404, "Sucursal no encontrada.")
 
-    respuesta = sucursal_service.actualizar_sucursal(franquicia_id, body["sucursal_id"], nuevo_nombre)
-    
-    logging.info(f"✅ Respuesta de actualización: {respuesta}")
-    
-    return respuesta
+    try:
+        resultado = self.repository.update_item(
+            {"FranquiciaID": franquicia_id},
+            "SET Sucursales = :sucursales",
+            {":sucursales": sucursales}
+        )
+        if resultado:
+            return self._response(200, "Sucursal actualizada correctamente.")
+        return self._response(500, "No se pudo actualizar la sucursal.")
+    except Exception as e:
+        return self._response(500, f"Error inesperado: {str(e)}")
+
 
 def eliminar_sucursal(franquicia_id, event):
     """Elimina una sucursal de una franquicia."""

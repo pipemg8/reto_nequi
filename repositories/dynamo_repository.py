@@ -44,7 +44,17 @@ class DynamoRepository:
         except (ClientError, BotoCoreError) as e:
             logger.error(f"\u274c Error al insertar ítem en DynamoDB: {str(e)}")
             return False
-
+        
+    def delete_item(self, key: dict) -> bool:
+        """Elimina un ítem de la tabla."""
+        try:
+            self.table.delete_item(Key=key)
+            logger.info(f"✅ Ítem eliminado correctamente: {key}")
+            return True
+        except (ClientError, BotoCoreError) as e:
+            logger.error(f"❌ Error al eliminar ítem de DynamoDB: {str(e)}")
+            return False
+        
     def update_item(self, key: dict, update_expression: str, expression_values: dict):
         """Actualiza un ítem en la tabla."""
         try:
