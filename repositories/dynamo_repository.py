@@ -1,5 +1,22 @@
 import boto3
+import logging
+import json
+from decimal import Decimal
 from botocore.exceptions import BotoCoreError, ClientError
+
+# Configuración de logs
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def convert_decimal(obj):
+    """Convierte objetos Decimal de DynamoDB a tipos serializables."""
+    if isinstance(obj, list):
+        return [convert_decimal(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: convert_decimal(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return int(obj) if obj % 1 == 0 else float(obj)
+    return obj
 
 class DynamoRepository:
     """Clase para interactuar con DynamoDB."""
@@ -12,9 +29,10 @@ class DynamoRepository:
         """Obtiene un ítem de la tabla por su clave primaria."""
         try:
             response = self.table.get_item(Key=key)
-            return response.get("Item")
+            item = response.get("Item")
+            return convert_decimal(item) if item else None
         except (ClientError, BotoCoreError) as e:
-            print(f"❌ Error al obtener ítem de DynamoDB: {str(e)}")
+            logger.error(f"Error al obtener ítem de DynamoDB: {str(e)}")
             return None
 
     def update_item(self, key: dict, update_expression: str, expression_values: dict):
@@ -26,33 +44,31 @@ class DynamoRepository:
                 ExpressionAttributeValues=expression_values,
                 ReturnValues="UPDATED_NEW"
             )
-            return response.get("Attributes", {})
+            return convert_decimal(response.get("Attributes", {}))
         except ClientError as e:
-            print(f"❌ Error en update_item: {e.response['Error']['Message']}")
+            logger.error(f"Error en update_item: {e.response['Error']['Message']}")
             return None
         except BotoCoreError as e:
-            print(f"❌ Error en update_item (BotoCoreError): {str(e)}")
+            logger.error(f"Error en update_item (BotoCoreError): {str(e)}")
             return None
 
     def actualizar_sucursal(self, franquicia_id: str, sucursal_id: str, nuevo_nombre: str) -> bool:
-        """
-        Actualiza el nombre de una sucursal específica dentro de una franquicia en DynamoDB.
-        """
+        """Actualiza el nombre de una sucursal dentro de una franquicia en DynamoDB."""
         try:
-            # 🔍 Obtener la franquicia
+            # Obtener la franquicia
             franquicia = self.get_item({"FranquiciaID": franquicia_id})
             if not franquicia:
-                print(f"⚠️ Franquicia {franquicia_id} no encontrada.")
+                logger.warning(f"⚠️ Franquicia {franquicia_id} no encontrada.")
                 return False
 
             sucursales = franquicia.get("Sucursales", [])
             index = next((i for i, s in enumerate(sucursales) if s["SucursalID"] == sucursal_id), -1)
 
             if index == -1:
-                print(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
+                logger.warning(f"⚠️ Sucursal {sucursal_id} no encontrada en la franquicia {franquicia_id}.")
                 return False
 
-            # 📝 Actualizar directamente el nombre en la posición específica
+            # Actualizar el nombre de la sucursal en la posición específica
             update_expression = f"SET Sucursales[{index}].Nombre = :nuevo_nombre"
             expression_values = {":nuevo_nombre": nuevo_nombre}
 
@@ -63,15 +79,15 @@ class DynamoRepository:
             )
 
             if resultado:
-                print(f"✅ Sucursal {sucursal_id} actualizada correctamente a '{nuevo_nombre}'.")
+                logger.info(f"✅ Sucursal {sucursal_id} actualizada correctamente a '{nuevo_nombre}'.")
                 return True
             else:
-                print(f"⚠️ No se pudo actualizar la sucursal {sucursal_id}.")
+                logger.warning(f"⚠️ No se pudo actualizar la sucursal {sucursal_id}.")
                 return False
 
         except ClientError as e:
-            print(f"❌ Error al actualizar sucursal: {e.response['Error']['Message']}")
+            logger.error(f"❌ Error al actualizar sucursal: {e.response['Error']['Message']}")
             return False
         except BotoCoreError as e:
-            print(f"❌ Error al actualizar sucursal (BotoCoreError): {str(e)}")
+            logger.error(f"❌ Error al actualizar sucursal (BotoCoreError): {str(e)}")
             return False
